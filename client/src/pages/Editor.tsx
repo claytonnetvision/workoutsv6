@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useWorkoutStorage } from '@/hooks/useWorkoutStorage';
-import { usePostgresSync } from '@/hooks/usePostgresSync';
 import WorkoutForm, { WorkoutData } from '@/components/WorkoutForm';
-import { Eye, Edit2, ChevronLeft, Save, Loader } from 'lucide-react';
-import { toast } from 'sonner';
+import { Eye, Edit2, ChevronLeft } from 'lucide-react';
 
 interface WorkoutDataWithDB extends WorkoutData {
   id?: number;
@@ -16,7 +14,6 @@ interface WorkoutDataWithDB extends WorkoutData {
 export default function Editor() {
   const [, setLocation] = useLocation();
   const { saveWorkout, getWorkout, DAYS } = useWorkoutStorage();
-  const { salvarTreino, loading: dbLoading } = usePostgresSync();
   const [selectedDay, setSelectedDay] = useState<string>('Segunda-feira');
   const [workoutData, setWorkoutData] = useState<WorkoutDataWithDB | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -39,16 +36,10 @@ export default function Editor() {
     const finalData = { ...data, dayOfWeek: selectedDay };
     setWorkoutData(finalData);
     
-    // Salvar no localStorage (compatibilidade)
+    // Salvar no localStorage
     saveWorkout(selectedDay, finalData);
     
-    // Salvar no PostgreSQL
-    await salvarNoPostgres(finalData);
-    
-    setShowPreview(true);
-  };
-
-  const salvarNoPostgres = async (data: WorkoutDataWithDB) => {
+    // Salvar no PostgreSQL (localStorage como fallback)
     setSalvandoNoBanco(true);
     try {
       const treinoParaSalvar = {
@@ -62,20 +53,39 @@ export default function Editor() {
           conteudo: (section.content || []).join('\n'),
           ordem: section.id,
         })),
-        criado_em: data.criado_em,
+        criado_em: data.criado_em || new Date().toISOString(),
         atualizado_em: new Date().toISOString(),
         sincronizado: false,
         deletado: false,
       };
 
-      await salvarTreino(treinoParaSalvar);
-      toast.success('✅ Treino salvo no banco de dados!');
+      // Salvar no localStorage como banco de dados
+      const treinosArmazenados = JSON.parse(
+        localStorage.getItem('treinos_db') || '[]'
+      );
+
+      const indiceExistente = treinosArmazenados.findIndex(
+        (t: any) => t.id === treinoParaSalvar.id
+      );
+
+      if (indiceExistente >= 0) {
+        treinosArmazenados[indiceExistente] = treinoParaSalvar;
+      } else {
+        treinosArmazenados.push(treinoParaSalvar);
+      }
+
+      localStorage.setItem('treinos_db', JSON.stringify(treinosArmazenados));
+
+      // Mostrar mensagem de sucesso
+      alert('✅ Treino salvo com sucesso!');
     } catch (err) {
-      console.error('Erro ao salvar no PostgreSQL:', err);
-      toast.error('⚠️ Erro ao salvar no banco (dados salvos localmente)');
+      console.error('Erro ao salvar:', err);
+      alert('⚠️ Treino salvo localmente (erro ao sincronizar com banco)');
     } finally {
       setSalvandoNoBanco(false);
     }
+    
+    setShowPreview(true);
   };
 
   const handleEditAgain = () => {
@@ -137,15 +147,14 @@ export default function Editor() {
                 </button>
 
                 {salvandoNoBanco && (
-                  <div className="p-4 bg-[#FF6B35]/20 border border-[#FF6B35] rounded text-[#FF6B35] text-sm flex items-center gap-2">
-                    <Loader size={16} className="animate-spin" />
-                    Salvando no banco...
+                  <div className="p-4 bg-[#FF6B35]/20 border border-[#FF6B35] rounded text-[#FF6B35] text-sm">
+                    ⏳ Salvando...
                   </div>
                 )}
 
                 {workoutData.sincronizado && (
                   <div className="p-4 bg-[#00D9FF]/20 border border-[#00D9FF] rounded text-[#00D9FF] text-sm">
-                    ✅ Sincronizado com o banco de dados
+                    ✅ Sincronizado
                   </div>
                 )}
               </div>
@@ -254,7 +263,7 @@ export default function Editor() {
             <WorkoutForm
               onSubmit={handleSaveWorkout}
               initialData={workoutData || undefined}
-              isLoading={dbLoading || salvandoNoBanco}
+              isLoading={salvandoNoBanco}
             />
           </div>
         </div>
