@@ -13,7 +13,6 @@ export interface WorkoutData {
   }>;
 }
 
-// ✅ API_BASE APONTANDO PARA RENDER - PRODUÇÃO
 const API_BASE = 'https://workouts6-back.onrender.com/api';
 
 export function useTreinosAPI() {
@@ -21,86 +20,107 @@ export function useTreinosAPI() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Recuperar todos os treinos
   const fetchTreinos = async () => {
     setLoading(true);
     setError(null);
     try {
-      // ✅ USANDO ${API_BASE} - NÃO USAR /api/treinos
       const response = await fetch(`${API_BASE}/treinos`);
-      if (!response.ok) throw new Error('Erro ao recuperar treinos');
+      if (!response.ok) throw new Error(`Erro HTTP ${response.status}`);
       const data = await response.json();
-      setTreinos(data.map((t: any) => ({
+
+      // Mapeamento básico (sem sections na listagem geral)
+      const mapped = data.map((t: any) => ({
         id: t.id,
         date: t.data,
         dayOfWeek: t.dia_semana,
         focusTechnique: t.foco_tecnico,
-        sections: [],
-      })));
+        sections: [], // ← intencional: lista geral não traz sections
+      }));
+
+      console.log('Treinos carregados (lista resumida):', mapped.length, 'itens');
+      setTreinos(mapped);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(msg);
+      console.error('Erro fetchTreinos:', msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // Recuperar treino de um dia específico
   const fetchTreinoPorDia = async (dia: string): Promise<WorkoutData | null> => {
     setLoading(true);
     setError(null);
     try {
-      // ✅ USANDO ${API_BASE}
       const response = await fetch(`${API_BASE}/treinos/dia/${encodeURIComponent(dia)}`);
-      if (!response.ok) return null;
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error(`Erro HTTP ${response.status}`);
+      }
       const data = await response.json();
+
       return {
         id: data.id,
         date: data.data,
         dayOfWeek: data.dia_semana,
         focusTechnique: data.foco_tecnico,
-        sections: data.sections || [],
+        sections: (data.sections || []).map((s: any) => ({
+          id: s.id?.toString() || crypto.randomUUID(),
+          title: s.nome_secao,
+          durationMinutes: s.duracao_minutos,
+          content: typeof s.conteudo === 'string' ? s.conteudo.split('\n').filter(Boolean) : [],
+        })),
       };
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(msg);
+      console.error('Erro fetchTreinoPorDia:', msg);
       return null;
     } finally {
       setLoading(false);
     }
   };
 
-  // Recuperar treino por ID
   const fetchTreinoById = async (id: number): Promise<WorkoutData | null> => {
     setLoading(true);
     setError(null);
     try {
-      // ✅ USANDO ${API_BASE}
       const response = await fetch(`${API_BASE}/treinos/${id}`);
-      if (!response.ok) return null;
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error(`Erro HTTP ${response.status}`);
+      }
       const data = await response.json();
+
       return {
         id: data.id,
         date: data.data,
         dayOfWeek: data.dia_semana,
         focusTechnique: data.foco_tecnico,
-        sections: data.sections || [],
+        sections: (data.sections || []).map((s: any) => ({
+          id: s.id?.toString() || crypto.randomUUID(),
+          title: s.nome_secao,
+          durationMinutes: s.duracao_minutos,
+          content: typeof s.conteudo === 'string' ? s.conteudo.split('\n').filter(Boolean) : [],
+        })),
       };
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(msg);
+      console.error('Erro fetchTreinoById:', msg);
       return null;
     } finally {
       setLoading(false);
     }
   };
 
-  // Salvar novo treino
   const saveTreino = async (workout: WorkoutData): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
-      // ✅ USANDO ${API_BASE}
       const response = await fetch(`${API_BASE}/treinos`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
@@ -118,36 +138,32 @@ export function useTreinosAPI() {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Erro ao salvar treino: ${response.status} - ${errorData}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao salvar: ${response.status} - ${errorText}`);
       }
-      
+
       const data = await response.json();
-      console.log('✅ Treino salvo com sucesso:', data);
-      
-      // Recarregar treinos
-      await fetchTreinos();
-      
+      console.log('Treino criado com ID:', data.id);
+
+      await fetchTreinos(); // recarrega a lista
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(errorMsg);
-      console.error('❌ Erro ao salvar treino:', errorMsg);
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(msg);
+      console.error('Erro saveTreino:', msg);
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  // Atualizar treino
   const updateTreino = async (id: number, workout: WorkoutData): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
-      // ✅ USANDO ${API_BASE}
       const response = await fetch(`${API_BASE}/treinos/${id}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
@@ -165,55 +181,44 @@ export function useTreinosAPI() {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Erro ao atualizar treino: ${response.status} - ${errorData}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao atualizar: ${response.status} - ${errorText}`);
       }
-      
-      console.log('✅ Treino atualizado com sucesso');
-      
-      // Recarregar treinos
-      await fetchTreinos();
-      
+
+      console.log('Treino atualizado ID:', id);
+      await fetchTreinos(); // recarrega lista
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(errorMsg);
-      console.error('❌ Erro ao atualizar treino:', errorMsg);
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(msg);
+      console.error('Erro updateTreino:', msg);
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  // Deletar treino
   const deleteTreino = async (id: number): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
-      // ✅ USANDO ${API_BASE}
       const response = await fetch(`${API_BASE}/treinos/${id}`, {
         method: 'DELETE',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Erro ao deletar treino: ${response.status} - ${errorData}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao deletar: ${response.status} - ${errorText}`);
       }
-      
-      console.log('✅ Treino deletado com sucesso');
-      
-      // Recarregar treinos
+
+      console.log('Treino deletado ID:', id);
       await fetchTreinos();
-      
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(errorMsg);
-      console.error('❌ Erro ao deletar treino:', errorMsg);
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(msg);
+      console.error('Erro deleteTreino:', msg);
       return false;
     } finally {
       setLoading(false);
