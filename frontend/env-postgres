@@ -1,0 +1,1 @@
+VITE_POSTGRES_URL=postgresql://neondb_owner:npg_MAFrdzHZ68vs@ep-soft-frost-aculcnam-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
