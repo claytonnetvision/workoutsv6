@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useWorkoutStorage } from '@/hooks/useWorkoutStorage';
+import { useTreinosAPI } from '@/hooks/useTreinosAPI';
 import { Clock, Zap, Target, Flame, Play, Pause, RotateCcw, Edit2, ChevronLeft } from 'lucide-react';
 import { WorkoutData } from '@/components/WorkoutForm';
 
@@ -28,6 +29,7 @@ const formatTime = (seconds: number): string => {
 export default function Display() {
   const [, setLocation] = useLocation();
   const { getWorkout, DAYS } = useWorkoutStorage();
+  const { fetchTreinoPorDia, loading: apiLoading } = useTreinosAPI();
   const [selectedDay, setSelectedDay] = useState<string>('Segunda-feira');
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [activeSection, setActiveSection] = useState(0);
@@ -35,7 +37,7 @@ export default function Display() {
   const [timerStates, setTimerStates] = useState<Record<string, TimerState>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load workout data
+  // Load workout data from URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const dayParam = params.get('day');
@@ -45,15 +47,30 @@ export default function Display() {
     }
   }, [DAYS]);
 
-  // Load workout when day changes
+  // Load workout when day changes (try API first, then localStorage)
   useEffect(() => {
-    const data = getWorkout(selectedDay);
-    if (data) {
-      setWorkoutData(data);
+    const loadWorkout = async () => {
+      // Tenta carregar do banco de dados primeiro
+      const apiData = await fetchTreinoPorDia(selectedDay);
+      if (apiData) {
+        setWorkoutData(apiData);
+      } else {
+        // Se não encontrar no banco, tenta localStorage
+        const localData = getWorkout(selectedDay);
+        if (localData) {
+          setWorkoutData(localData);
+        }
+      }
+    };
 
-      // Initialize timers
+    loadWorkout();
+  }, [selectedDay, getWorkout, fetchTreinoPorDia]);
+
+  // Initialize timers when workout data changes
+  useEffect(() => {
+    if (workoutData) {
       const initialStates: Record<string, TimerState> = {};
-      data.sections.forEach((section: any) => {
+      workoutData.sections.forEach((section: any) => {
         initialStates[section.id] = {
           isRunning: false,
           timeLeft: section.durationMinutes * 60,
@@ -62,7 +79,7 @@ export default function Display() {
       });
       setTimerStates(initialStates);
     }
-  }, [selectedDay, getWorkout]);
+  }, [workoutData]);
 
   // Timer interval
   useEffect(() => {
@@ -145,6 +162,17 @@ export default function Display() {
     const timeLeft = timerStates[sectionId]?.timeLeft || totalSeconds;
     return ((totalSeconds - timeLeft) / totalSeconds) * 100;
   };
+
+  if (apiLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold text-[#FF6B35]">Carregando treino...</h1>
+          <p className="text-[#AAAAAA]">Aguarde um momento</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!workoutData) {
     return (
