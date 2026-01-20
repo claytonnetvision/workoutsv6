@@ -10,6 +10,7 @@ import Display from "./pages/Display";
 import WorkoutManager from "./pages/WorkoutManager";
 import PDFUpload from "./pages/PDFUpload";
 import AutoImport from "./pages/AutoImport";
+import Historico from "./pages/Historico";
 
 /**
  * Design Philosophy: Industrial Futurista
@@ -22,6 +23,7 @@ import AutoImport from "./pages/AutoImport";
  * /manager - Gerenciar múltiplos treinos
  * /editor - Criar/editar treino
  * /display - Exibir treino criado
+ * /historico - Histórico de treinos (NOVO)
  */
 
 function Router() {
@@ -33,6 +35,7 @@ function Router() {
       <Route path="/auto-import" component={AutoImport} />
       <Route path="/editor" component={Editor} />
       <Route path="/display" component={Display} />
+      <Route path="/historico" component={Historico} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

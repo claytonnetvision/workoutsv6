@@ -1,15 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useWorkoutStorage } from '@/hooks/useWorkoutStorage';
+import { usePostgresSync } from '@/hooks/usePostgresSync';
 import WorkoutForm, { WorkoutData } from '@/components/WorkoutForm';
-import { Eye, Edit2, ChevronLeft } from 'lucide-react';
+import { Eye, Edit2, ChevronLeft, Save, Loader } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface WorkoutDataWithDB extends WorkoutData {
+  id?: number;
+  criado_em?: string;
+  atualizado_em?: string;
+  sincronizado?: boolean;
+}
 
 export default function Editor() {
   const [, setLocation] = useLocation();
   const { saveWorkout, getWorkout, DAYS } = useWorkoutStorage();
+  const { salvarTreino, loading: dbLoading } = usePostgresSync();
   const [selectedDay, setSelectedDay] = useState<string>('Segunda-feira');
-  const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
+  const [workoutData, setWorkoutData] = useState<WorkoutDataWithDB | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [salvandoNoBanco, setSalvandoNoBanco] = useState(false);
 
   // Get day from URL params
   useEffect(() => {
@@ -24,11 +35,47 @@ export default function Editor() {
     }
   }, [DAYS, getWorkout]);
 
-  const handleSaveWorkout = (data: WorkoutData) => {
+  const handleSaveWorkout = async (data: WorkoutDataWithDB) => {
     const finalData = { ...data, dayOfWeek: selectedDay };
     setWorkoutData(finalData);
+    
+    // Salvar no localStorage (compatibilidade)
     saveWorkout(selectedDay, finalData);
+    
+    // Salvar no PostgreSQL
+    await salvarNoPostgres(finalData);
+    
     setShowPreview(true);
+  };
+
+  const salvarNoPostgres = async (data: WorkoutDataWithDB) => {
+    setSalvandoNoBanco(true);
+    try {
+      const treinoParaSalvar = {
+        id: data.id || Date.now(),
+        data: data.date || new Date().toISOString().split('T')[0],
+        dia_semana: selectedDay,
+        foco_tecnico: data.focusTechnique || '',
+        secoes: (data.sections || []).map((section: any) => ({
+          nome_secao: section.title,
+          duracao_minutos: section.durationMinutes,
+          conteudo: (section.content || []).join('\n'),
+          ordem: section.id,
+        })),
+        criado_em: data.criado_em,
+        atualizado_em: new Date().toISOString(),
+        sincronizado: false,
+        deletado: false,
+      };
+
+      await salvarTreino(treinoParaSalvar);
+      toast.success('✅ Treino salvo no banco de dados!');
+    } catch (err) {
+      console.error('Erro ao salvar no PostgreSQL:', err);
+      toast.error('⚠️ Erro ao salvar no banco (dados salvos localmente)');
+    } finally {
+      setSalvandoNoBanco(false);
+    }
   };
 
   const handleEditAgain = () => {
@@ -51,82 +98,102 @@ export default function Editor() {
       <div className="min-h-screen bg-black text-white">
         {/* Header */}
         <header className="sticky top-0 z-40 border-b-2 border-[#FF6B35] bg-black/80 backdrop-blur-sm">
-          <div className="container py-4 flex justify-between items-center">
-            <h1 className="neon-text text-2xl md:text-4xl font-bold tracking-wider">
-              PREVIEW
-            </h1>
-            <div className="flex gap-4">
+          <div className="container py-4 md:py-6">
+            <div className="flex items-center justify-between mb-4">
               <button
-                onClick={handleEditAgain}
-                className="flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200"
+                onClick={() => setLocation('/manager')}
+                className="flex items-center gap-2 px-3 py-2 border border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] rounded transition-all"
               >
-                <Edit2 size={18} /> EDITAR
-              </button>
-              <button
-                onClick={() => setLocation(`/display?day=${selectedDay}`)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded transition-all duration-200"
-              >
-                <Eye size={18} /> EXIBIR NA TV
+                <ChevronLeft size={18} /> VOLTAR
               </button>
             </div>
+            <h1 className="neon-text text-2xl md:text-4xl font-bold tracking-wider mb-2">
+              PREVIEW DO TREINO
+            </h1>
+            <p className="text-[#AAAAAA] text-sm">
+              {selectedDay} - {workoutData.focusTechnique}
+            </p>
           </div>
         </header>
 
-        {/* Preview Content */}
+        {/* Main Content */}
         <main className="container py-12">
-          <div className="space-y-8">
-            {/* Header Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 items-center neon-box p-8 rounded-lg">
-              <div>
-                <p className="text-xs md:text-sm text-[#AAAAAA] font-mono mb-2">DATA</p>
-                <p className="text-xl md:text-2xl font-bold text-[#FF6B35]">{workoutData.date}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs md:text-sm text-[#AAAAAA] font-mono mb-2">DIA</p>
-                <p className="text-xl md:text-2xl font-bold text-[#00D9FF]">{workoutData.dayOfWeek}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs md:text-sm text-[#AAAAAA] font-mono mb-2">FOCO TÉCNICO</p>
-                <p className="text-xl md:text-2xl font-bold text-[#FFD700]">{workoutData.focusTechnique}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left: Actions */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-24 space-y-4">
+                <button
+                  onClick={handleEditAgain}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded transition-all duration-200"
+                >
+                  <Edit2 size={18} /> EDITAR
+                </button>
+
+                <button
+                  onClick={() => setLocation(`/display?day=${selectedDay}`)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200"
+                >
+                  <Eye size={18} /> EXIBIR NA TV
+                </button>
+
+                {salvandoNoBanco && (
+                  <div className="p-4 bg-[#FF6B35]/20 border border-[#FF6B35] rounded text-[#FF6B35] text-sm flex items-center gap-2">
+                    <Loader size={16} className="animate-spin" />
+                    Salvando no banco...
+                  </div>
+                )}
+
+                {workoutData.sincronizado && (
+                  <div className="p-4 bg-[#00D9FF]/20 border border-[#00D9FF] rounded text-[#00D9FF] text-sm">
+                    ✅ Sincronizado com o banco de dados
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Sections Preview */}
-            <div className="space-y-6">
-              {workoutData.sections.map((section, idx) => (
-                <div
-                  key={section.id}
-                  className="neon-box p-6 md:p-8 rounded-lg"
-                >
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <h2 className="text-3xl md:text-4xl font-bold text-[#FF6B35] tracking-wider mb-2">
-                        {section.title}
-                      </h2>
-                      <p className="text-[#00D9FF] font-mono text-sm">
-                        {section.durationMinutes}' minutos
-                      </p>
-                    </div>
-                    <span className="px-4 py-2 border border-[#FF6B35] rounded text-[#FF6B35] font-mono text-sm">
-                      {String(idx + 1).padStart(2, '0')}
-                    </span>
-                  </div>
-
-                  {section.content.length > 0 && (
-                    <ul className="space-y-2 ml-4">
-                      {section.content.map((item, itemIdx) => (
-                        <li
-                          key={itemIdx}
-                          className="text-base md:text-lg text-white/90 flex items-start gap-3"
-                        >
-                          <span className="text-[#FF6B35] font-bold mt-1">▸</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+            {/* Right: Workout Details */}
+            <div className="lg:col-span-2">
+              <div className="neon-box p-6 md:p-8 rounded-lg space-y-6">
+                {/* Header */}
+                <div>
+                  <h2 className="text-3xl md:text-4xl font-bold text-[#FF6B35] mb-2">
+                    {workoutData.focusTechnique}
+                  </h2>
+                  <p className="text-[#00D9FF] font-mono text-sm">
+                    {workoutData.date}
+                  </p>
                 </div>
-              ))}
+
+                {/* Sections */}
+                <div className="space-y-6">
+                  {workoutData.sections && workoutData.sections.map((section: any) => (
+                    <div key={section.id} className="border-l-4 border-[#FF6B35] pl-4 py-2">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-2xl font-bold text-[#FF6B35]">
+                          {section.title}
+                        </h3>
+                        <span className="text-[#00D9FF] font-mono text-lg">
+                          {section.durationMinutes}'
+                        </span>
+                      </div>
+
+                      {section.content && section.content.length > 0 && (
+                        <ul className="space-y-2">
+                          {section.content.map((item: string, idx: number) => (
+                            <li
+                              key={idx}
+                              className="text-white/80 flex items-start gap-3 text-sm md:text-base"
+                            >
+                              <span className="text-[#FF6B35] font-bold">▸</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </main>
@@ -138,49 +205,58 @@ export default function Editor() {
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b-2 border-[#FF6B35] bg-black/80 backdrop-blur-sm">
-        <div className="container py-4">
+        <div className="container py-4 md:py-6">
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => setLocation('/manager')}
-              className="flex items-center gap-2 px-3 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
+              className="flex items-center gap-2 px-3 py-2 border border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] rounded transition-all"
             >
-              <ChevronLeft size={16} /> VOLTAR
+              <ChevronLeft size={18} /> VOLTAR
             </button>
           </div>
-          <h1 className="neon-text text-2xl md:text-4xl font-bold tracking-wider">
-            CRIAR TREINO
+          <h1 className="neon-text text-2xl md:text-4xl font-bold tracking-wider mb-2">
+            CRIAR/EDITAR TREINO
           </h1>
-          <p className="text-[#AAAAAA] text-sm mt-2">Preencha os dados abaixo para criar um novo treino</p>
+          <p className="text-[#AAAAAA] text-sm">Preencha os dados do treino para {selectedDay}</p>
         </div>
       </header>
 
-      {/* Day Selector */}
-      <div className="container py-6 border-b border-[#333333]">
-        <p className="text-sm font-mono text-[#AAAAAA] mb-3">SELECIONE O DIA</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-          {DAYS.map(day => (
-            <button
-              key={day}
-              onClick={() => handleChangeDay(day)}
-              className={`px-3 py-2 rounded font-mono text-xs md:text-sm transition-all duration-200 ${
-                selectedDay === day
-                  ? 'neon-box text-[#FF6B35]'
-                  : 'border border-[#333333] text-[#AAAAAA] hover:border-[#FF6B35]'
-              }`}
-            >
-              {day.split('-')[0]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Form */}
+      {/* Main Content */}
       <main className="container py-12">
-        <div className="max-w-4xl">
-          <WorkoutForm 
-            onSave={handleSaveWorkout}
-            initialData={workoutData || undefined}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Left: Day Selector */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <h2 className="text-lg font-mono tracking-widest text-[#FF6B35] mb-4">
+                SELECIONE O DIA
+              </h2>
+
+              <div className="space-y-2">
+                {DAYS.map((day) => (
+                  <button
+                    key={day}
+                    onClick={() => handleChangeDay(day)}
+                    className={`w-full p-3 rounded-lg border-2 transition-all duration-300 text-left ${
+                      selectedDay === day
+                        ? 'neon-box border-[#FF6B35] bg-[#FF6B35]/10'
+                        : 'border-[#333333] hover:border-[#00D9FF]'
+                    }`}
+                  >
+                    <span className="font-mono text-sm">{day}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Form */}
+          <div className="lg:col-span-3">
+            <WorkoutForm
+              onSubmit={handleSaveWorkout}
+              initialData={workoutData || undefined}
+              isLoading={dbLoading || salvandoNoBanco}
+            />
+          </div>
         </div>
       </main>
     </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useWorkoutStorage } from '@/hooks/useWorkoutStorage';
-import { Trash2, Plus, Eye, Edit2, Download, Upload, FileUp } from 'lucide-react';
+import { Trash2, Plus, Eye, Edit2, Download, Upload, FileUp, BookOpen } from 'lucide-react';
 
 export default function WorkoutManager() {
   const [, setLocation] = useLocation();
@@ -134,6 +134,16 @@ export default function WorkoutManager() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-[#FF6B35] hover:bg-[#FF6B35]/10 text-[#FF6B35] font-bold rounded transition-all duration-200 text-sm"
                 >
                   <Upload size={16} /> Importar Manual
+                </button>
+              </div>
+
+              {/* Histórico */}
+              <div className="mt-6 pt-6 border-t border-[#333333]">
+                <button
+                  onClick={() => setLocation('/historico')}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200"
+                >
+                  <BookOpen size={18} /> 📚 HISTÓRICO
                 </button>
               </div>
 
