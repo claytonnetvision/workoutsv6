@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "outputDirectory": "dist/public",
   "env": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
