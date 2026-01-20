@@ -12,7 +12,10 @@ export interface WorkoutData {
     content: string[];
   }>;
 }
+
+// ✅ API_BASE APONTANDO PARA RENDER - PRODUÇÃO
 const API_BASE = 'https://workouts6-back.onrender.com/api';
+
 export function useTreinosAPI() {
   const [treinos, setTreinos] = useState<WorkoutData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,7 +26,8 @@ export function useTreinosAPI() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/treinos');
+      // ✅ USANDO ${API_BASE} - NÃO USAR /api/treinos
+      const response = await fetch(`${API_BASE}/treinos`);
       if (!response.ok) throw new Error('Erro ao recuperar treinos');
       const data = await response.json();
       setTreinos(data.map((t: any) => ({
@@ -45,7 +49,8 @@ export function useTreinosAPI() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/treinos/dia/${encodeURIComponent(dia)}`);
+      // ✅ USANDO ${API_BASE}
+      const response = await fetch(`${API_BASE}/treinos/dia/${encodeURIComponent(dia)}`);
       if (!response.ok) return null;
       const data = await response.json();
       return {
@@ -68,7 +73,8 @@ export function useTreinosAPI() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/treinos/${id}`);
+      // ✅ USANDO ${API_BASE}
+      const response = await fetch(`${API_BASE}/treinos/${id}`);
       if (!response.ok) return null;
       const data = await response.json();
       return {
@@ -91,21 +97,33 @@ export function useTreinosAPI() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/treinos', {
+      // ✅ USANDO ${API_BASE}
+      const response = await fetch(`${API_BASE}/treinos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: JSON.stringify({
           data: workout.date,
           dia_semana: workout.dayOfWeek,
           foco_tecnico: workout.focusTechnique,
-          sections: workout.sections,
+          secoes: workout.sections.map((s, idx) => ({
+            nome_secao: s.title,
+            duracao_minutos: s.durationMinutes,
+            conteudo: s.content.join('\n'),
+            ordem: idx,
+          })),
         }),
       });
 
-      if (!response.ok) throw new Error('Erro ao salvar treino');
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Erro ao salvar treino: ${response.status} - ${errorData}`);
+      }
       
       const data = await response.json();
-      console.log('Treino salvo com sucesso:', data);
+      console.log('✅ Treino salvo com sucesso:', data);
       
       // Recarregar treinos
       await fetchTreinos();
@@ -114,7 +132,7 @@ export function useTreinosAPI() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(errorMsg);
-      console.error('Erro ao salvar treino:', errorMsg);
+      console.error('❌ Erro ao salvar treino:', errorMsg);
       return false;
     } finally {
       setLoading(false);
@@ -126,20 +144,32 @@ export function useTreinosAPI() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/treinos/${id}`, {
+      // ✅ USANDO ${API_BASE}
+      const response = await fetch(`${API_BASE}/treinos/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: JSON.stringify({
           data: workout.date,
           dia_semana: workout.dayOfWeek,
           foco_tecnico: workout.focusTechnique,
-          sections: workout.sections,
+          secoes: workout.sections.map((s, idx) => ({
+            nome_secao: s.title,
+            duracao_minutos: s.durationMinutes,
+            conteudo: s.content.join('\n'),
+            ordem: idx,
+          })),
         }),
       });
 
-      if (!response.ok) throw new Error('Erro ao atualizar treino');
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Erro ao atualizar treino: ${response.status} - ${errorData}`);
+      }
       
-      console.log('Treino atualizado com sucesso');
+      console.log('✅ Treino atualizado com sucesso');
       
       // Recarregar treinos
       await fetchTreinos();
@@ -148,7 +178,7 @@ export function useTreinosAPI() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(errorMsg);
-      console.error('Erro ao atualizar treino:', errorMsg);
+      console.error('❌ Erro ao atualizar treino:', errorMsg);
       return false;
     } finally {
       setLoading(false);
@@ -160,13 +190,21 @@ export function useTreinosAPI() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/treinos/${id}`, {
+      // ✅ USANDO ${API_BASE}
+      const response = await fetch(`${API_BASE}/treinos/${id}`, {
         method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
       });
 
-      if (!response.ok) throw new Error('Erro ao deletar treino');
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Erro ao deletar treino: ${response.status} - ${errorData}`);
+      }
       
-      console.log('Treino deletado com sucesso');
+      console.log('✅ Treino deletado com sucesso');
       
       // Recarregar treinos
       await fetchTreinos();
@@ -175,7 +213,7 @@ export function useTreinosAPI() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(errorMsg);
-      console.error('Erro ao deletar treino:', errorMsg);
+      console.error('❌ Erro ao deletar treino:', errorMsg);
       return false;
     } finally {
       setLoading(false);
