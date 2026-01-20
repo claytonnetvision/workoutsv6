@@ -1,14 +1,7 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
+  "outputDirectory": "dist",
   "env": {
-    "NODE_OPTIONS": "--max-old-space-size=4096",
-    "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
-  },
-  "rewrites": [
-    {
-      "source": "/:path*",
-      "destination": "/index.html"
-    }
-  ]
+    "VITE_API_URL": "https://workouts6-back.onrender.com/api"
+  }
 }
