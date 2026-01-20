@@ -8,16 +8,27 @@ import { Eye, Edit2, ChevronLeft } from 'lucide-react';
 export default function Editor() {
   const [, setLocation] = useLocation();
   const { saveWorkout, getWorkout, DAYS } = useWorkoutStorage();
-  const { saveTreino, loading: apiLoading } = useTreinosAPI();
+  const { saveTreino, updateTreino, fetchTreinoById, loading: apiLoading } = useTreinosAPI();
   const [selectedDay, setSelectedDay] = useState<string>('Segunda-feira');
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [treinoId, setTreinoId] = useState<number | null>(null);
+  const [loadingData, setLoadingData] = useState(false);
 
-  // Get day from URL params
+  // Get day and id from URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const dayParam = params.get('day');
-    if (dayParam && DAYS.includes(dayParam)) {
+    const idParam = params.get('id');
+
+    if (idParam) {
+      // Carregando treino existente do banco
+      setIsEditing(true);
+      setTreinoId(parseInt(idParam));
+      loadTreinoFromDatabase(parseInt(idParam));
+    } else if (dayParam && DAYS.includes(dayParam)) {
+      // Criando novo treino
       setSelectedDay(dayParam);
       const saved = getWorkout(dayParam);
       if (saved) {
@@ -26,10 +37,35 @@ export default function Editor() {
     }
   }, [DAYS, getWorkout]);
 
+  const loadTreinoFromDatabase = async (id: number) => {
+    setLoadingData(true);
+    try {
+      const treino = await fetchTreinoById(id);
+      if (treino) {
+        setWorkoutData(treino);
+        setSelectedDay(treino.dayOfWeek);
+      } else {
+        alert('❌ Erro ao carregar treino');
+        setLocation('/manager');
+      }
+    } catch (err) {
+      console.error('Erro ao carregar treino:', err);
+      alert('❌ Erro ao carregar treino');
+      setLocation('/manager');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
   const handleSaveWorkout = (data: WorkoutData) => {
     const finalData = { ...data, dayOfWeek: selectedDay };
     setWorkoutData(finalData);
-    saveWorkout(selectedDay, finalData);
+    
+    // Se não estiver editando, salvar no localStorage também
+    if (!isEditing) {
+      saveWorkout(selectedDay, finalData);
+    }
+    
     setShowPreview(true);
   };
 
@@ -37,9 +73,23 @@ export default function Editor() {
     if (!workoutData) return;
 
     try {
-      const success = await saveTreino(workoutData);
+      let success = false;
+      
+      if (isEditing && treinoId) {
+        // Atualizar treino existente
+        success = await updateTreino(treinoId, workoutData);
+        if (success) {
+          alert('✅ Treino atualizado com sucesso!');
+        }
+      } else {
+        // Salvar novo treino
+        success = await saveTreino(workoutData);
+        if (success) {
+          alert('✅ Treino salvo no banco de dados com sucesso!');
+        }
+      }
+      
       if (success) {
-        alert('✅ Treino salvo no banco de dados com sucesso!');
         setLocation('/manager');
       } else {
         alert('❌ Erro ao salvar treino no banco de dados');
@@ -55,6 +105,12 @@ export default function Editor() {
   };
 
   const handleChangeDay = (newDay: string) => {
+    if (isEditing) {
+      // Se estiver editando, não permitir mudar dia
+      alert('Não é possível mudar o dia ao editar um treino existente');
+      return;
+    }
+    
     setSelectedDay(newDay);
     const saved = getWorkout(newDay);
     if (saved) {
@@ -64,6 +120,16 @@ export default function Editor() {
     }
     setShowPreview(false);
   };
+
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl font-bold text-[#FF6B35] mb-4">⏳ Carregando treino...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (showPreview && workoutData) {
     return (
@@ -155,7 +221,7 @@ export default function Editor() {
                 disabled={apiLoading}
                 className="w-full px-6 py-4 bg-[#00D9FF] hover:bg-[#00D9FF]/80 disabled:bg-[#00D9FF]/50 text-black font-bold text-lg rounded transition-all duration-200"
               >
-                {apiLoading ? '⏳ SALVANDO...' : '💾 SALVAR E EXIBIR NA TV'}
+                {apiLoading ? '⏳ SALVANDO...' : isEditing ? '💾 ATUALIZAR' : '💾 SALVAR E EXIBIR NA TV'}
               </button>
             </div>
           </div>
@@ -178,31 +244,35 @@ export default function Editor() {
             </button>
           </div>
           <h1 className="neon-text text-2xl md:text-4xl font-bold tracking-wider">
-            CRIAR TREINO
+            {isEditing ? 'EDITAR TREINO' : 'CRIAR TREINO'}
           </h1>
-          <p className="text-[#AAAAAA] text-sm mt-2">Preencha os dados abaixo para criar um novo treino</p>
+          <p className="text-[#AAAAAA] text-sm mt-2">
+            {isEditing ? 'Atualize os dados do treino' : 'Preencha os dados abaixo para criar um novo treino'}
+          </p>
         </div>
       </header>
 
-      {/* Day Selector */}
-      <div className="container py-6 border-b border-[#333333]">
-        <p className="text-sm font-mono text-[#AAAAAA] mb-3">SELECIONE O DIA</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-          {DAYS.map(day => (
-            <button
-              key={day}
-              onClick={() => handleChangeDay(day)}
-              className={`px-3 py-2 rounded font-mono text-xs md:text-sm transition-all duration-200 ${
-                selectedDay === day
-                  ? 'neon-box text-[#FF6B35]'
-                  : 'border border-[#333333] text-[#AAAAAA] hover:border-[#FF6B35]'
-              }`}
-            >
-              {day.split('-')[0]}
-            </button>
-          ))}
+      {/* Day Selector - Apenas se não estiver editando */}
+      {!isEditing && (
+        <div className="container py-6 border-b border-[#333333]">
+          <p className="text-sm font-mono text-[#AAAAAA] mb-3">SELECIONE O DIA</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            {DAYS.map(day => (
+              <button
+                key={day}
+                onClick={() => handleChangeDay(day)}
+                className={`px-3 py-2 rounded font-mono text-xs md:text-sm transition-all duration-200 ${
+                  selectedDay === day
+                    ? 'neon-box text-[#FF6B35]'
+                    : 'border border-[#333333] text-[#AAAAAA] hover:border-[#FF6B35]'
+                }`}
+              >
+                {day.split('-')[0]}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Form */}
       <main className="container py-12">
