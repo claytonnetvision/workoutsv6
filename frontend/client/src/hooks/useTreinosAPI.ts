@@ -12,7 +12,7 @@ export interface WorkoutData {
     content: string[];
   }>;
 }
-
+const API_BASE = 'https://workouts6-back.onrender.com/api';
 export function useTreinosAPI() {
   const [treinos, setTreinos] = useState<WorkoutData[]>([]);
   const [loading, setLoading] = useState(false);
