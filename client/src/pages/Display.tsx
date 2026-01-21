@@ -231,7 +231,7 @@ export default function Display() {
             <button
               onClick={() => {
                 console.log(`✏️ [Display] Editando treino do dia ${selectedDay}`);
-                setLocation(`/editor?day=${selectedDay}`);
+                setLocation(`/editor?id=${workoutData.id}`);
               }}
               className="flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
             >

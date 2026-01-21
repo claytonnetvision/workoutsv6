@@ -16,6 +16,20 @@ export default function Editor() {
 
   const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
+  // ✅ Formatar data de ISO para yyyy-MM-dd
+  const formatDateForInput = (isoDate: string): string => {
+    try {
+      const date = new Date(isoDate);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (e) {
+      console.error('❌ [Editor] Erro ao formatar data:', e);
+      return isoDate;
+    }
+  };
+
   // Get day and id from URL params
   useEffect(() => {
     console.log('🚀 [Editor] Componente montado');
@@ -46,9 +60,13 @@ export default function Editor() {
       console.log('✅ [Editor] Treino carregado:', treino);
       
       if (treino) {
-        // ✅ Dados já vêm no formato correto de useTreinosAPI
-        console.log('🔄 [Editor] Dados formatados:', treino);
-        setWorkoutData(treino);
+        // ✅ Formatar data para o input date
+        const formattedTreino = {
+          ...treino,
+          date: formatDateForInput(treino.date),
+        };
+        console.log('🔄 [Editor] Dados formatados:', formattedTreino);
+        setWorkoutData(formattedTreino);
         setSelectedDay(treino.dayOfWeek);
       } else {
         console.error('❌ [Editor] Treino não encontrado');

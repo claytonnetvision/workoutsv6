@@ -22,6 +22,39 @@ export function useTreinosAPI() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Carregar sections de um treino
+  const fetchSections = useCallback(async (treinoId: number) => {
+    try {
+      console.log(`📡 [useTreinosAPI] Carregando sections para treino ${treinoId}`);
+      const url = `${API_BASE}/treinos/${treinoId}/secoes`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.warn(`⚠️ [useTreinosAPI] Sections não encontradas para ${treinoId}`);
+        return [];
+      }
+      
+      const data = await response.json();
+      console.log(`✅ [useTreinosAPI] Sections carregadas: ${data.length}`);
+      
+      // Mapear sections do banco para o formato esperado
+      const mappedSections = data.map((s: any) => ({
+        id: s.id || `section-${Math.random()}`,
+        title: s.nome_secao || s.title || '',
+        durationMinutes: s.duracao_minutos || s.durationMinutes || 0,
+        content: typeof s.conteudo === 'string' 
+          ? s.conteudo.split('\n').filter((line: string) => line.trim())
+          : (s.content || []),
+      }));
+      
+      console.log(`🔄 [useTreinosAPI] Sections mapeadas:`, mappedSections);
+      return mappedSections;
+    } catch (err) {
+      console.error(`❌ [useTreinosAPI] Erro ao carregar sections:`, err);
+      return [];
+    }
+  }, []);
+
   // Recuperar todos os treinos
   const fetchTreinos = useCallback(async () => {
     console.log('🔄 [useTreinosAPI] Iniciando fetchTreinos...');
@@ -40,39 +73,24 @@ export function useTreinosAPI() {
       
       const data = await response.json();
       console.log('✅ [useTreinosAPI] Treinos recebidos:', data.length);
-      console.log('📋 [useTreinosAPI] Raw data:', JSON.stringify(data, null, 2));
       
-      // ✅ MAPEAMENTO CORRETO - INCLUI SECTIONS!
-      const mappedData = data.map((t: any) => {
-        console.log(`🔄 [useTreinosAPI] Mapeando treino ID ${t.id}:`);
-        console.log(`  - Sections recebidas:`, t.sections);
-        console.log(`  - Tipo de sections:`, typeof t.sections);
-        console.log(`  - É array?`, Array.isArray(t.sections));
+      // ✅ Mapear treinos E carregar sections para cada um
+      const mappedData = await Promise.all(data.map(async (t: any) => {
+        console.log(`🔄 [useTreinosAPI] Processando treino ID ${t.id}`);
         
-        const mapped = {
+        // Carregar sections para este treino
+        const sections = await fetchSections(t.id);
+        
+        return {
           id: t.id,
           date: t.data,
           dayOfWeek: t.dia_semana,
           focusTechnique: t.foco_tecnico,
-          sections: t.sections && Array.isArray(t.sections) 
-            ? t.sections.map((s: any, idx: number) => {
-                console.log(`    📍 Section ${idx}:`, s);
-                return {
-                  id: s.id || `section-${Math.random()}`,
-                  title: s.nome_secao || s.title || '',
-                  durationMinutes: s.duracao_minutos || s.durationMinutes || 0,
-                  content: typeof s.conteudo === 'string' 
-                    ? s.conteudo.split('\n').filter((line: string) => line.trim())
-                    : (s.content || []),
-                };
-              })
-            : [],
+          sections: sections,
         };
-        console.log(`  ✅ Treino mapeado:`, mapped);
-        return mapped;
-      });
+      }));
       
-      console.log('✅ [useTreinosAPI] Dados mapeados, total:', mappedData.length);
+      console.log('✅ [useTreinosAPI] Todos os treinos processados:', mappedData.length);
       setTreinos(mappedData);
       return mappedData;
     } catch (err) {
@@ -83,7 +101,7 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchSections]);
 
   // Recuperar treino de um dia específico
   const fetchTreinoPorDia = useCallback(async (dia: string): Promise<WorkoutData | null> => {
@@ -104,30 +122,19 @@ export function useTreinosAPI() {
       
       const data = await response.json();
       console.log('✅ [useTreinosAPI] Treino encontrado');
-      console.log('📋 [useTreinosAPI] Raw data:', JSON.stringify(data, null, 2));
       
-      // ✅ MAPEAMENTO CORRETO COM SECTIONS
+      // ✅ Carregar sections para este treino
+      const sections = await fetchSections(data.id);
+      
       const mapped: WorkoutData = {
         id: data.id,
         date: data.data,
         dayOfWeek: data.dia_semana,
         focusTechnique: data.foco_tecnico,
-        sections: data.sections && Array.isArray(data.sections)
-          ? data.sections.map((s: any, idx: number) => {
-              console.log(`  📍 Section ${idx}:`, s);
-              return {
-                id: s.id || `section-${Math.random()}`,
-                title: s.nome_secao || s.title || '',
-                durationMinutes: s.duracao_minutos || s.durationMinutes || 0,
-                content: typeof s.conteudo === 'string'
-                  ? s.conteudo.split('\n').filter((line: string) => line.trim())
-                  : (s.content || []),
-              };
-            })
-          : [],
+        sections: sections,
       };
       
-      console.log('🔄 [useTreinosAPI] Dados mapeados:', mapped);
+      console.log('🔄 [useTreinosAPI] Treino com sections:', mapped);
       return mapped;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -137,7 +144,7 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchSections]);
 
   // Recuperar treino por ID
   const fetchTreinoById = useCallback(async (id: number): Promise<WorkoutData | null> => {
@@ -158,30 +165,19 @@ export function useTreinosAPI() {
       
       const data = await response.json();
       console.log('✅ [useTreinosAPI] Treino encontrado');
-      console.log('📋 [useTreinosAPI] Raw data:', JSON.stringify(data, null, 2));
       
-      // ✅ MAPEAMENTO CORRETO COM SECTIONS
+      // ✅ Carregar sections para este treino
+      const sections = await fetchSections(data.id);
+      
       const mapped: WorkoutData = {
         id: data.id,
         date: data.data,
         dayOfWeek: data.dia_semana,
         focusTechnique: data.foco_tecnico,
-        sections: data.sections && Array.isArray(data.sections)
-          ? data.sections.map((s: any, idx: number) => {
-              console.log(`  📍 Section ${idx}:`, s);
-              return {
-                id: s.id || `section-${Math.random()}`,
-                title: s.nome_secao || s.title || '',
-                durationMinutes: s.duracao_minutos || s.durationMinutes || 0,
-                content: typeof s.conteudo === 'string'
-                  ? s.conteudo.split('\n').filter((line: string) => line.trim())
-                  : (s.content || []),
-              };
-            })
-          : [],
+        sections: sections,
       };
       
-      console.log('🔄 [useTreinosAPI] Dados mapeados:', mapped);
+      console.log('🔄 [useTreinosAPI] Treino com sections:', mapped);
       return mapped;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -191,12 +187,11 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchSections]);
 
   // Salvar novo treino
   const saveTreino = useCallback(async (workout: WorkoutData): Promise<boolean> => {
     console.log('💾 [useTreinosAPI] Salvando novo treino');
-    console.log('📥 [useTreinosAPI] Dados recebidos:', JSON.stringify(workout, null, 2));
     setLoading(true);
     setError(null);
     try {
@@ -206,15 +201,12 @@ export function useTreinosAPI() {
         data: workout.date,
         dia_semana: workout.dayOfWeek,
         foco_tecnico: workout.focusTechnique,
-        secoes: workout.sections.map((s, idx) => {
-          console.log(`  📍 Preparando section ${idx}:`, s);
-          return {
-            nome_secao: s.title,
-            duracao_minutos: s.durationMinutes,
-            conteudo: s.content.join('\n'),
-            ordem: idx,
-          };
-        }),
+        secoes: workout.sections.map((s, idx) => ({
+          nome_secao: s.title,
+          duracao_minutos: s.durationMinutes,
+          conteudo: s.content.join('\n'),
+          ordem: idx,
+        })),
       };
       
       console.log('📦 [useTreinosAPI] Payload enviado:', JSON.stringify(payload, null, 2));
@@ -236,9 +228,7 @@ export function useTreinosAPI() {
         throw new Error(`Erro ${response.status}: ${errorData}`);
       }
       
-      const data = await response.json();
       console.log('✅ [useTreinosAPI] Treino salvo com sucesso');
-      console.log('📋 [useTreinosAPI] Response:', JSON.stringify(data, null, 2));
       
       // Recarregar treinos
       await fetchTreinos();
@@ -257,7 +247,6 @@ export function useTreinosAPI() {
   // Atualizar treino
   const updateTreino = useCallback(async (id: number, workout: WorkoutData): Promise<boolean> => {
     console.log(`🔄 [useTreinosAPI] Atualizando treino ${id}`);
-    console.log('📥 [useTreinosAPI] Dados recebidos:', JSON.stringify(workout, null, 2));
     setLoading(true);
     setError(null);
     try {
@@ -267,15 +256,12 @@ export function useTreinosAPI() {
         data: workout.date,
         dia_semana: workout.dayOfWeek,
         foco_tecnico: workout.focusTechnique,
-        secoes: workout.sections.map((s, idx) => {
-          console.log(`  📍 Preparando section ${idx}:`, s);
-          return {
-            nome_secao: s.title,
-            duracao_minutos: s.durationMinutes,
-            conteudo: s.content.join('\n'),
-            ordem: idx,
-          };
-        }),
+        secoes: workout.sections.map((s, idx) => ({
+          nome_secao: s.title,
+          duracao_minutos: s.durationMinutes,
+          conteudo: s.content.join('\n'),
+          ordem: idx,
+        })),
       };
       
       console.log('📦 [useTreinosAPI] Payload enviado:', JSON.stringify(payload, null, 2));
