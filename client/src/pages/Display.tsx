@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
-import { Clock, Zap, Target, Flame, Play, Pause, RotateCcw, Edit2, ChevronLeft } from 'lucide-react';
+import { Clock, Zap, Target, Flame, Play, Pause, RotateCcw, Edit2, ChevronLeft, Menu } from 'lucide-react';
 import { WorkoutData } from '@/components/WorkoutForm';
 
 interface TimerState {
@@ -33,6 +33,7 @@ export default function Display() {
   const [activeSection, setActiveSection] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [timerStates, setTimerStates] = useState<Record<string, TimerState>>({});
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
@@ -81,7 +82,7 @@ export default function Display() {
     };
 
     loadWorkout();
-  }, []); // ✅ VAZIO - executa UMA VEZ
+  }, []);
 
   // Initialize timers when workout data changes
   useEffect(() => {
@@ -218,15 +219,28 @@ export default function Display() {
         style={{ width: `${scrollProgress}%` }}
       />
 
+      {/* ✅ NOVO: Botão flutuante /manager - Fixo no topo direito */}
+      <div className="fixed top-4 right-4 z-50 md:hidden">
+        <button
+          onClick={() => setLocation('/manager')}
+          className="flex items-center justify-center w-12 h-12 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+          title="Ir para Gerenciador"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
       {/* Header */}
       <header className="relative border-b-2 border-[#FF6B35] bg-black/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="container py-8 md:py-12">
           <div className="flex justify-between items-start mb-6">
+            {/* ✅ NOVO: Botão /manager - Desktop */}
             <button
               onClick={() => setLocation('/manager')}
-              className="flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
+              className="hidden md:flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
+              title="Ir para Gerenciador"
             >
-              <ChevronLeft size={16} /> VOLTAR
+              <Menu size={16} /> GERENCIAR
             </button>
             <button
               onClick={() => {
@@ -242,12 +256,11 @@ export default function Display() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 items-center">
             {/* Logo Section */}
             <div className="flex items-center justify-center md:justify-start">
-              <div className="neon-text text-3xl md:text-4xl font-bold tracking-wider">
-                V6
-              </div>
-              <div className="ml-3 text-xs md:text-sm text-[#00D9FF] font-mono tracking-widest">
-                CROSSFIT
-              </div>
+              <img 
+                src="/images/logo-v6.png" 
+                alt="V6 CrossFit" 
+                className="w-16 h-16 md:w-20 md:h-20 rounded-full shadow-lg"
+              />
             </div>
 
             {/* Main Title */}

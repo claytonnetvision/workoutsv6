@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
 import WorkoutForm, { WorkoutData } from '@/components/WorkoutForm';
-import { Eye, Edit2, ChevronLeft } from 'lucide-react';
+import { Eye, Edit2, ChevronLeft, Menu } from 'lucide-react';
 
 export default function Editor() {
   const [, setLocation] = useLocation();
@@ -171,6 +171,17 @@ export default function Editor() {
   if (showPreview && workoutData) {
     return (
       <div className="min-h-screen bg-black text-white">
+        {/* ✅ NOVO: Botão flutuante /manager - Mobile */}
+        <div className="fixed top-4 right-4 z-50 md:hidden">
+          <button
+            onClick={() => setLocation('/manager')}
+            className="flex items-center justify-center w-12 h-12 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+            title="Ir para Gerenciador"
+          >
+            <Menu size={24} />
+          </button>
+        </div>
+
         {/* Header */}
         <header className="sticky top-0 z-40 border-b-2 border-[#FF6B35] bg-black/80 backdrop-blur-sm">
           <div className="container py-4 flex justify-between items-center">
@@ -178,6 +189,13 @@ export default function Editor() {
               PREVIEW
             </h1>
             <div className="flex gap-4">
+              {/* ✅ NOVO: Botão /manager - Desktop */}
+              <button
+                onClick={() => setLocation('/manager')}
+                className="hidden md:flex items-center gap-2 px-4 py-2 border-2 border-[#FF6B35] hover:bg-[#FF6B35]/10 text-[#FF6B35] font-bold rounded transition-all duration-200 text-sm"
+              >
+                <Menu size={18} /> GERENCIAR
+              </button>
               <button
                 onClick={handleEditAgain}
                 className="flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200"
@@ -277,6 +295,17 @@ export default function Editor() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* ✅ NOVO: Botão flutuante /manager - Mobile */}
+      <div className="fixed top-4 right-4 z-50 md:hidden">
+        <button
+          onClick={() => setLocation('/manager')}
+          className="flex items-center justify-center w-12 h-12 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+          title="Ir para Gerenciador"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
       {/* Header */}
       <header className="sticky top-0 z-40 border-b-2 border-[#FF6B35] bg-black/80 backdrop-blur-sm">
         <div className="container py-4">
@@ -289,6 +318,13 @@ export default function Editor() {
               className="flex items-center gap-2 px-3 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
             >
               <ChevronLeft size={16} /> VOLTAR
+            </button>
+            {/* ✅ NOVO: Botão /manager - Desktop */}
+            <button
+              onClick={() => setLocation('/manager')}
+              className="hidden md:flex items-center gap-2 px-4 py-2 border-2 border-[#FF6B35] hover:bg-[#FF6B35]/10 text-[#FF6B35] font-bold rounded transition-all duration-200 text-sm"
+            >
+              <Menu size={16} /> GERENCIAR
             </button>
           </div>
           <h1 className="neon-text text-2xl md:text-4xl font-bold tracking-wider">
