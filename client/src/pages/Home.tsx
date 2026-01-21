@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
-import { Menu } from 'lucide-react';
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { fetchTreinos, loading } = useTreinosAPI();
+  const { treinos, fetchTreinos, loading } = useTreinosAPI();
   const [todayDay, setTodayDay] = useState<string>('Segunda-feira');
   const [redirecting, setRedirecting] = useState(true);
 
@@ -23,14 +22,41 @@ export default function Home() {
     setTodayDay(dayName);
 
     // ✅ Carregar treinos do banco
+    console.log('📡 [Home] Carregando treinos...');
     fetchTreinos();
-
-    // ✅ Redirecionar para Display com o dia de hoje
-    setTimeout(() => {
-      console.log(`🔄 [Home] Redirecionando para /display?day=${dayName}`);
-      setLocation(`/display?day=${dayName}`);
-    }, 500);
   }, []);
+
+  // ✅ NOVO: Quando treinos carregam, buscar o treino do dia e redirecionar
+  useEffect(() => {
+    if (treinos.length > 0 && redirecting) {
+      console.log(`🔍 [Home] Procurando treino para: ${todayDay}`);
+      console.log(`📊 [Home] Total de treinos: ${treinos.length}`);
+      
+      // ✅ Buscar treino que corresponde ao dia de hoje
+      const treinoDodia = treinos.find(t => {
+        console.log(`  Comparando: "${t.dayOfWeek}" === "${todayDay}" ? ${t.dayOfWeek === todayDay}`);
+        return t.dayOfWeek === todayDay;
+      });
+
+      if (treinoDodia) {
+        console.log(`✅ [Home] Treino encontrado! ID: ${treinoDodia.id}`);
+        console.log(`🔄 [Home] Redirecionando para /display?id=${treinoDodia.id}`);
+        setRedirecting(false);
+        setLocation(`/display?id=${treinoDodia.id}`);
+      } else {
+        console.warn(`⚠️ [Home] Nenhum treino encontrado para ${todayDay}`);
+        console.log(`📋 [Home] Treinos disponíveis:`);
+        treinos.forEach((t, idx) => {
+          console.log(`  [${idx}] ${t.dayOfWeek} (ID: ${t.id})`);
+        });
+        
+        // ✅ Se não encontrar treino do dia, redirecionar para /manager
+        console.log('🔄 [Home] Redirecionando para /manager (nenhum treino do dia)');
+        setRedirecting(false);
+        setLocation('/manager');
+      }
+    }
+  }, [treinos, redirecting, todayDay]);
 
   if (redirecting || loading) {
     return (
@@ -62,6 +88,12 @@ export default function Home() {
               <div className="flex justify-center mt-6">
                 <div className="w-12 h-12 border-4 border-[#333333] border-t-[#FF6B35] rounded-full animate-spin"></div>
               </div>
+            </div>
+
+            {/* Debug Info */}
+            <div className="mt-8 text-xs text-[#666666] font-mono">
+              <p>Status: {loading ? 'Carregando...' : 'Pronto'}</p>
+              <p>Treinos: {treinos.length}</p>
             </div>
           </div>
         </div>
