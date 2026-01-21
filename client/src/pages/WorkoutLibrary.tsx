@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
-import { ChevronLeft, Copy, Filter, X, Calendar, Search } from 'lucide-react';
+import { ChevronLeft, Copy, Filter, X, Calendar, Search, Eye } from 'lucide-react';
 
 interface Treino {
   id: number;
@@ -25,6 +25,7 @@ export default function WorkoutLibrary() {
   const [selectedTechniqueFilter, setSelectedTechniqueFilter] = useState<string>('');
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
   const [selectedTreino, setSelectedTreino] = useState<Treino | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [selectedApplyDay, setSelectedApplyDay] = useState<string>('Segunda-feira');
   const [applying, setApplying] = useState(false);
@@ -49,10 +50,9 @@ export default function WorkoutLibrary() {
     }
   }, [treinos]);
 
-  // ✅ Formatar data para exibição - CORRIGIDO
+  // ✅ Formatar data para exibição
   const formatDate = (dateStr: string): string => {
     try {
-      // Se a data já vem com T (ISO format), pega apenas a parte da data
       const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
       const date = new Date(datePart + 'T00:00:00');
       return date.toLocaleDateString('pt-BR', { 
@@ -71,13 +71,11 @@ export default function WorkoutLibrary() {
     console.log('🔍 [WorkoutLibrary] Aplicando filtros...');
     let filtered = [...treinos];
 
-    // Filtro por dia da semana
     if (selectedDayFilter) {
       console.log(`  Filtrando por dia: ${selectedDayFilter}`);
       filtered = filtered.filter(t => t.dayOfWeek === selectedDayFilter);
     }
 
-    // Filtro por técnica - BUSCA DE TEXTO
     if (selectedTechniqueFilter.trim()) {
       console.log(`  Filtrando por técnica: ${selectedTechniqueFilter}`);
       filtered = filtered.filter(t => 
@@ -85,7 +83,6 @@ export default function WorkoutLibrary() {
       );
     }
 
-    // Filtro por data - CORRIGIDO
     if (selectedDateFilter) {
       console.log(`  Filtrando por data: ${selectedDateFilter}`);
       filtered = filtered.filter(t => {
@@ -94,7 +91,6 @@ export default function WorkoutLibrary() {
       });
     }
 
-    // Ordenar por data
     filtered.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
@@ -134,6 +130,7 @@ export default function WorkoutLibrary() {
         alert(`✅ Treino "${selectedTreino.focusTechnique}" aplicado para ${selectedApplyDay}!`);
         
         setShowApplyModal(false);
+        setShowViewModal(false);
         setSelectedTreino(null);
         
         setTimeout(() => {
@@ -390,15 +387,26 @@ export default function WorkoutLibrary() {
                         </p>
                       </div>
                       {selectedTreino?.id === treino.id && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowApplyModal(true);
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded transition-all duration-200"
-                        >
-                          <Copy size={16} /> APLICAR
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowViewModal(true);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#FFD700] hover:bg-[#FFD700]/80 text-black font-bold rounded transition-all duration-200"
+                          >
+                            <Eye size={16} /> VISUALIZAR
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowApplyModal(true);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded transition-all duration-200"
+                          >
+                            <Copy size={16} /> APLICAR
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -425,6 +433,95 @@ export default function WorkoutLibrary() {
           </div>
         </div>
       </main>
+
+      {/* View Modal - NOVO */}
+      {showViewModal && selectedTreino && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="neon-box p-8 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-[#FF6B35]">
+                {selectedTreino.focusTechnique}
+              </h2>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="p-2 hover:bg-[#333333] rounded transition-all duration-200"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Info */}
+            <div className="flex flex-wrap gap-3 mb-6">
+              <span className="text-[#00D9FF] font-mono text-sm bg-[#00D9FF]/10 px-3 py-1 rounded">
+                {selectedTreino.dayOfWeek}
+              </span>
+              <span className="text-[#FFD700] font-mono text-sm bg-[#FFD700]/10 px-3 py-1 rounded">
+                {formatDate(selectedTreino.date)}
+              </span>
+              <span className="text-[#FF6B35] font-mono text-sm bg-[#FF6B35]/10 px-3 py-1 rounded">
+                ID: {selectedTreino.id}
+              </span>
+            </div>
+
+            {/* Sections - COMPLETO */}
+            {selectedTreino.sections && selectedTreino.sections.length > 0 ? (
+              <div className="space-y-6">
+                <h3 className="text-lg font-mono tracking-widest text-[#FF6B35] mb-4">
+                  SEÇÕES ({selectedTreino.sections.length})
+                </h3>
+
+                {selectedTreino.sections.map((section, idx) => (
+                  <div key={section.id} className="border-l-4 border-[#FF6B35] pl-4 py-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-xl font-bold text-[#FF6B35]">
+                        {idx + 1}. {section.title}
+                      </h4>
+                      <span className="text-[#00D9FF] font-mono text-sm bg-[#00D9FF]/10 px-2 py-1 rounded">
+                        {section.durationMinutes}'
+                      </span>
+                    </div>
+
+                    {/* Conteúdo da Seção */}
+                    {section.content && section.content.length > 0 ? (
+                      <ul className="space-y-2 ml-4">
+                        {section.content.map((item, itemIdx) => (
+                          <li key={itemIdx} className="text-white/80 text-sm flex items-start gap-3">
+                            <span className="text-[#FF6B35] font-bold mt-0.5">▸</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-[#AAAAAA] text-sm italic">Nenhum conteúdo adicionado</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[#AAAAAA]">❌ Nenhuma seção adicionada</p>
+            )}
+
+            {/* Buttons */}
+            <div className="flex gap-4 mt-8 pt-6 border-t border-[#333333]">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="flex-1 px-4 py-3 border-2 border-[#FF6B35] hover:bg-[#FF6B35]/10 text-[#FF6B35] font-bold rounded transition-all duration-200"
+              >
+                FECHAR
+              </button>
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setShowApplyModal(true);
+                }}
+                className="flex-1 px-4 py-3 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <Copy size={16} /> APLICAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Apply Modal */}
       {showApplyModal && selectedTreino && (
