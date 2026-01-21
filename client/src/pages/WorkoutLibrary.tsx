@@ -28,7 +28,8 @@ export default function WorkoutLibrary() {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [selectedApplyDay, setSelectedApplyDay] = useState<string>('Segunda-feira');
   const [applying, setApplying] = useState(false);
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // Mais recentes primeiro
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [minDate, setMinDate] = useState<string>('');
 
   const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
@@ -37,6 +38,16 @@ export default function WorkoutLibrary() {
     console.log('📚 [WorkoutLibrary] Componente montado');
     fetchTreinos();
   }, []);
+
+  // ✅ Encontrar data mínima (treino mais antigo)
+  useEffect(() => {
+    if (treinos.length > 0) {
+      const dates = treinos.map(t => t.date).sort();
+      const minDateValue = dates[0];
+      console.log(`📅 [WorkoutLibrary] Data mínima: ${minDateValue}`);
+      setMinDate(minDateValue);
+    }
+  }, [treinos]);
 
   // ✅ Filtrar treinos com todos os critérios
   useEffect(() => {
@@ -55,10 +66,14 @@ export default function WorkoutLibrary() {
       filtered = filtered.filter(t => t.focusTechnique === selectedTechniqueFilter);
     }
 
-    // Filtro por data
+    // Filtro por data - CORRIGIDO
     if (selectedDateFilter) {
       console.log(`  Filtrando por data: ${selectedDateFilter}`);
-      filtered = filtered.filter(t => t.date === selectedDateFilter);
+      // Comparar apenas a parte da data (YYYY-MM-DD)
+      filtered = filtered.filter(t => {
+        const treinoDate = t.date.split('T')[0]; // Pega apenas YYYY-MM-DD
+        return treinoDate === selectedDateFilter;
+      });
     }
 
     // Ordenar por data
@@ -72,10 +87,8 @@ export default function WorkoutLibrary() {
     setFilteredTreinos(filtered);
   }, [treinos, selectedDayFilter, selectedTechniqueFilter, selectedDateFilter, sortOrder]);
 
-  // ✅ Extrair técnicas e datas únicas
+  // ✅ Extrair técnicas únicas
   const uniqueTechniques = Array.from(new Set(treinos.map(t => t.focusTechnique))).sort();
-  const uniqueDates = Array.from(new Set(treinos.map(t => t.date)))
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime()); // Mais recentes primeiro
 
   // ✅ Formatar data para exibição
   const formatDate = (dateStr: string): string => {
@@ -101,7 +114,6 @@ export default function WorkoutLibrary() {
     setApplying(true);
 
     try {
-      // ✅ Criar cópia com data de hoje
       const today = new Date();
       const newDate = today.toISOString().split('T')[0];
 
@@ -120,11 +132,9 @@ export default function WorkoutLibrary() {
         console.log('✅ [WorkoutLibrary] Treino aplicado com sucesso!');
         alert(`✅ Treino "${selectedTreino.focusTechnique}" aplicado para ${selectedApplyDay}!`);
         
-        // Resetar
         setShowApplyModal(false);
         setSelectedTreino(null);
         
-        // Redirecionar para manager
         setTimeout(() => {
           setLocation('/manager');
         }, 1000);
@@ -171,45 +181,64 @@ export default function WorkoutLibrary() {
         </div>
       </header>
 
+      {/* Info Banner */}
+      {minDate && (
+        <div className="bg-[#1a1a1a] border-b border-[#333333] py-3">
+          <div className="container">
+            <p className="text-[#AAAAAA] text-sm">
+              📅 Treinos disponíveis desde <span className="text-[#00D9FF] font-bold">{formatDate(minDate)}</span>
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="container py-12">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left: Filters */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24">
+            <div className="sticky top-32">
               <h2 className="text-lg font-mono tracking-widest text-[#FF6B35] mb-4 flex items-center gap-2">
                 <Filter size={18} /> FILTROS
               </h2>
 
-              {/* Data */}
+              {/* Data com Calendário */}
               <div className="mb-6">
                 <p className="text-sm font-mono text-[#AAAAAA] mb-3 flex items-center gap-2">
                   <Calendar size={14} /> DATA
                 </p>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  <button
-                    onClick={() => setSelectedDateFilter(null)}
-                    className={`w-full text-left px-3 py-2 rounded font-mono text-xs transition-all duration-200 ${
-                      selectedDateFilter === null
-                        ? 'neon-box text-[#FF6B35]'
-                        : 'border border-[#333333] text-[#AAAAAA] hover:border-[#FF6B35]'
-                    }`}
-                  >
-                    Todas
-                  </button>
-                  {uniqueDates.map(date => (
+                <div className="space-y-2">
+                  {/* Input de Data */}
+                  <input
+                    type="date"
+                    value={selectedDateFilter || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      console.log(`📅 [WorkoutLibrary] Data selecionada: ${value}`);
+                      setSelectedDateFilter(value || null);
+                    }}
+                    min={minDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-full px-3 py-2 bg-[#1a1a1a] border-2 border-[#333333] rounded text-white font-mono text-sm focus:border-[#FF6B35] outline-none"
+                  />
+                  
+                  {/* Botão para limpar data */}
+                  {selectedDateFilter && (
                     <button
-                      key={date}
-                      onClick={() => setSelectedDateFilter(date)}
-                      className={`w-full text-left px-3 py-2 rounded font-mono text-xs transition-all duration-200 ${
-                        selectedDateFilter === date
-                          ? 'neon-box text-[#FF6B35]'
-                          : 'border border-[#333333] text-[#AAAAAA] hover:border-[#FF6B35]'
-                      }`}
+                      onClick={() => {
+                        console.log('🧹 [WorkoutLibrary] Limpando filtro de data');
+                        setSelectedDateFilter(null);
+                      }}
+                      className="w-full px-3 py-2 border border-[#FF006E] hover:bg-[#FF006E]/10 text-[#FF006E] font-mono text-xs rounded transition-all duration-200"
                     >
-                      {formatDate(date)}
+                      ✕ Limpar Data
                     </button>
-                  ))}
+                  )}
+
+                  {/* Info */}
+                  <p className="text-xs text-[#666666] mt-2">
+                    Selecione uma data para filtrar
+                  </p>
                 </div>
               </div>
 
