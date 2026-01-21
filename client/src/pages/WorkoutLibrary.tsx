@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
-import { ChevronLeft, Copy, Filter, X, Calendar } from 'lucide-react';
+import { ChevronLeft, Copy, Filter, X, Calendar, Search } from 'lucide-react';
 
 interface Treino {
   id: number;
@@ -22,7 +22,7 @@ export default function WorkoutLibrary() {
   
   const [filteredTreinos, setFilteredTreinos] = useState<Treino[]>([]);
   const [selectedDayFilter, setSelectedDayFilter] = useState<string | null>(null);
-  const [selectedTechniqueFilter, setSelectedTechniqueFilter] = useState<string | null>(null);
+  const [selectedTechniqueFilter, setSelectedTechniqueFilter] = useState<string>('');
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
   const [selectedTreino, setSelectedTreino] = useState<Treino | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -39,7 +39,7 @@ export default function WorkoutLibrary() {
     fetchTreinos();
   }, []);
 
-  // ✅ Encontrar data mínima (treino mais antigo)
+  // ✅ Encontrar data mínima
   useEffect(() => {
     if (treinos.length > 0) {
       const dates = treinos.map(t => t.date).sort();
@@ -48,6 +48,23 @@ export default function WorkoutLibrary() {
       setMinDate(minDateValue);
     }
   }, [treinos]);
+
+  // ✅ Formatar data para exibição - CORRIGIDO
+  const formatDate = (dateStr: string): string => {
+    try {
+      // Se a data já vem com T (ISO format), pega apenas a parte da data
+      const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+      const date = new Date(datePart + 'T00:00:00');
+      return date.toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+      });
+    } catch (err) {
+      console.error('❌ [WorkoutLibrary] Erro ao formatar data:', err);
+      return dateStr;
+    }
+  };
 
   // ✅ Filtrar treinos com todos os critérios
   useEffect(() => {
@@ -60,18 +77,19 @@ export default function WorkoutLibrary() {
       filtered = filtered.filter(t => t.dayOfWeek === selectedDayFilter);
     }
 
-    // Filtro por técnica
-    if (selectedTechniqueFilter) {
+    // Filtro por técnica - BUSCA DE TEXTO
+    if (selectedTechniqueFilter.trim()) {
       console.log(`  Filtrando por técnica: ${selectedTechniqueFilter}`);
-      filtered = filtered.filter(t => t.focusTechnique === selectedTechniqueFilter);
+      filtered = filtered.filter(t => 
+        t.focusTechnique.toUpperCase().includes(selectedTechniqueFilter.toUpperCase())
+      );
     }
 
     // Filtro por data - CORRIGIDO
     if (selectedDateFilter) {
       console.log(`  Filtrando por data: ${selectedDateFilter}`);
-      // Comparar apenas a parte da data (YYYY-MM-DD)
       filtered = filtered.filter(t => {
-        const treinoDate = t.date.split('T')[0]; // Pega apenas YYYY-MM-DD
+        const treinoDate = t.date.includes('T') ? t.date.split('T')[0] : t.date;
         return treinoDate === selectedDateFilter;
       });
     }
@@ -86,23 +104,6 @@ export default function WorkoutLibrary() {
     console.log(`  Resultado: ${filtered.length} treinos`);
     setFilteredTreinos(filtered);
   }, [treinos, selectedDayFilter, selectedTechniqueFilter, selectedDateFilter, sortOrder]);
-
-  // ✅ Extrair técnicas únicas
-  const uniqueTechniques = Array.from(new Set(treinos.map(t => t.focusTechnique))).sort();
-
-  // ✅ Formatar data para exibição
-  const formatDate = (dateStr: string): string => {
-    try {
-      const date = new Date(dateStr + 'T00:00:00');
-      return date.toLocaleDateString('pt-BR', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric' 
-      });
-    } catch {
-      return dateStr;
-    }
-  };
 
   // ✅ Aplicar treino na semana atual
   const handleApplyTreino = async () => {
@@ -153,11 +154,11 @@ export default function WorkoutLibrary() {
   const clearAllFilters = () => {
     console.log('🧹 [WorkoutLibrary] Limpando todos os filtros');
     setSelectedDayFilter(null);
-    setSelectedTechniqueFilter(null);
+    setSelectedTechniqueFilter('');
     setSelectedDateFilter(null);
   };
 
-  const hasActiveFilters = selectedDayFilter || selectedTechniqueFilter || selectedDateFilter;
+  const hasActiveFilters = selectedDayFilter || selectedTechniqueFilter.trim() || selectedDateFilter;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -208,7 +209,6 @@ export default function WorkoutLibrary() {
                   <Calendar size={14} /> DATA
                 </p>
                 <div className="space-y-2">
-                  {/* Input de Data */}
                   <input
                     type="date"
                     value={selectedDateFilter || ''}
@@ -222,7 +222,6 @@ export default function WorkoutLibrary() {
                     className="w-full px-3 py-2 bg-[#1a1a1a] border-2 border-[#333333] rounded text-white font-mono text-sm focus:border-[#FF6B35] outline-none"
                   />
                   
-                  {/* Botão para limpar data */}
                   {selectedDateFilter && (
                     <button
                       onClick={() => {
@@ -235,7 +234,6 @@ export default function WorkoutLibrary() {
                     </button>
                   )}
 
-                  {/* Info */}
                   <p className="text-xs text-[#666666] mt-2">
                     Selecione uma data para filtrar
                   </p>
@@ -272,33 +270,39 @@ export default function WorkoutLibrary() {
                 </div>
               </div>
 
-              {/* Técnica */}
+              {/* Técnica - BUSCA DE TEXTO */}
               <div className="mb-6">
-                <p className="text-sm font-mono text-[#AAAAAA] mb-3">TÉCNICA</p>
+                <p className="text-sm font-mono text-[#AAAAAA] mb-3 flex items-center gap-2">
+                  <Search size={14} /> TÉCNICA
+                </p>
                 <div className="space-y-2">
-                  <button
-                    onClick={() => setSelectedTechniqueFilter(null)}
-                    className={`w-full text-left px-3 py-2 rounded font-mono text-xs transition-all duration-200 ${
-                      selectedTechniqueFilter === null
-                        ? 'neon-box text-[#FF6B35]'
-                        : 'border border-[#333333] text-[#AAAAAA] hover:border-[#FF6B35]'
-                    }`}
-                  >
-                    Todas
-                  </button>
-                  {uniqueTechniques.map(tech => (
+                  <input
+                    type="text"
+                    placeholder="Digite a técnica..."
+                    value={selectedTechniqueFilter}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      console.log(`🔍 [WorkoutLibrary] Buscando técnica: ${value}`);
+                      setSelectedTechniqueFilter(value);
+                    }}
+                    className="w-full px-3 py-2 bg-[#1a1a1a] border-2 border-[#333333] rounded text-white font-mono text-sm focus:border-[#FF6B35] outline-none placeholder-[#666666]"
+                  />
+                  
+                  {selectedTechniqueFilter && (
                     <button
-                      key={tech}
-                      onClick={() => setSelectedTechniqueFilter(tech)}
-                      className={`w-full text-left px-3 py-2 rounded font-mono text-xs transition-all duration-200 ${
-                        selectedTechniqueFilter === tech
-                          ? 'neon-box text-[#FF6B35]'
-                          : 'border border-[#333333] text-[#AAAAAA] hover:border-[#FF6B35]'
-                      }`}
+                      onClick={() => {
+                        console.log('🧹 [WorkoutLibrary] Limpando filtro de técnica');
+                        setSelectedTechniqueFilter('');
+                      }}
+                      className="w-full px-3 py-2 border border-[#FF006E] hover:bg-[#FF006E]/10 text-[#FF006E] font-mono text-xs rounded transition-all duration-200"
                     >
-                      {tech}
+                      ✕ Limpar Busca
                     </button>
-                  ))}
+                  )}
+
+                  <p className="text-xs text-[#666666] mt-2">
+                    Busca em tempo real
+                  </p>
                 </div>
               </div>
 
