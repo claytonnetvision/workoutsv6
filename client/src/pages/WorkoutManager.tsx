@@ -24,16 +24,15 @@ export default function WorkoutManager() {
 
   const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
-  // Carregar treinos do banco ao montar
+  // ✅ CORRIGIDO: Usar [] para carregar UMA VEZ ao montar
   useEffect(() => {
     console.log('🚀 [WorkoutManager] Componente montado, carregando treinos...');
     fetchTreinos();
-  }, [fetchTreinos]);
+  }, []); // ✅ VAZIO - executa UMA VEZ
 
   // Log quando treinos mudam
   useEffect(() => {
-    console.log('📊 [WorkoutManager] Treinos atualizados:', treinos);
-    console.log('📈 [WorkoutManager] Total de treinos:', treinos.length);
+    console.log('📊 [WorkoutManager] Treinos atualizados:', treinos.length);
     treinos.forEach((t, idx) => {
       console.log(`  [${idx}] ID: ${t.id}, Dia: ${t.dayOfWeek}, Foco: ${t.focusTechnique}, Seções: ${t.sections?.length || 0}`);
     });
@@ -48,13 +47,9 @@ export default function WorkoutManager() {
     return acc;
   }, {} as Record<string, Treino[]>);
 
-  console.log('🗂️ [WorkoutManager] Treinos por dia:', treinosPorDia);
-
   const selectedTreino = selectedTreinoId 
     ? treinos.find(t => t.id === selectedTreinoId)
     : null;
-
-  console.log('👁️ [WorkoutManager] Treino selecionado:', selectedTreino);
 
   const handleDelete = async (id: number, dia: string) => {
     console.log(`🗑️ [WorkoutManager] Deletando treino ${id} de ${dia}`);
@@ -63,8 +58,6 @@ export default function WorkoutManager() {
       if (success) {
         alert('✅ Treino deletado com sucesso!');
         setSelectedTreinoId(null);
-        console.log('🔄 [WorkoutManager] Recarregando treinos após deletar...');
-        await fetchTreinos();
       } else {
         alert('❌ Erro ao deletar treino');
       }
@@ -86,7 +79,7 @@ export default function WorkoutManager() {
     setSelectedDay(day);
     const treinosDodia = treinosPorDia[day] || [];
     if (treinosDodia.length > 0) {
-      console.log(`  Treinos encontrados para ${day}:`, treinosDodia);
+      console.log(`  Treinos encontrados para ${day}:`, treinosDodia.length);
       setSelectedTreinoId(treinosDodia[0].id);
     } else {
       console.log(`  Nenhum treino para ${day}`);

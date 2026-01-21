@@ -37,7 +37,7 @@ export default function Display() {
 
   const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
-  // Load workout data from URL params
+  // ✅ CORRIGIDO: Carregar treino ao montar (UMA VEZ)
   useEffect(() => {
     console.log('🚀 [Display] Componente montado');
     const params = new URLSearchParams(window.location.search);
@@ -46,54 +46,42 @@ export default function Display() {
 
     console.log('🔍 [Display] URL params - day:', dayParam, 'id:', idParam);
 
-    if (idParam) {
-      // ✅ CARREGANDO POR ID (NOVO TREINO)
-      console.log(`📥 [Display] Carregando treino por ID: ${idParam}`);
-      loadTreinoById(parseInt(idParam));
-    } else if (dayParam && DAYS.includes(dayParam)) {
-      // ✅ CARREGANDO POR DIA (COMPATIBILIDADE)
-      console.log(`📅 [Display] Carregando treino por dia: ${dayParam}`);
-      setSelectedDay(dayParam);
-      loadTreinoPorDia(dayParam);
-    } else {
-      // Padrão: Segunda-feira
-      console.log('📅 [Display] Usando padrão: Segunda-feira');
-      loadTreinoPorDia('Segunda-feira');
-    }
-  }, []);
-
-  const loadTreinoById = async (id: number) => {
-    console.log(`📡 [Display] Buscando treino por ID: ${id}`);
-    try {
-      const apiData = await fetchTreinoById(id);
-      console.log('✅ [Display] Treino carregado:', apiData);
-      
-      if (apiData) {
-        setWorkoutData(apiData);
-        setSelectedDay(apiData.dayOfWeek);
+    const loadWorkout = async () => {
+      if (idParam) {
+        // ✅ CARREGANDO POR ID (NOVO TREINO)
+        console.log(`📥 [Display] Carregando treino por ID: ${idParam}`);
+        const apiData = await fetchTreinoById(parseInt(idParam));
+        if (apiData) {
+          console.log('✅ [Display] Treino carregado por ID');
+          setWorkoutData(apiData);
+          setSelectedDay(apiData.dayOfWeek);
+        } else {
+          console.error('❌ [Display] Treino não encontrado');
+        }
+      } else if (dayParam && DAYS.includes(dayParam)) {
+        // ✅ CARREGANDO POR DIA (COMPATIBILIDADE)
+        console.log(`📅 [Display] Carregando treino por dia: ${dayParam}`);
+        setSelectedDay(dayParam);
+        const apiData = await fetchTreinoPorDia(dayParam);
+        if (apiData) {
+          console.log('✅ [Display] Treino carregado por dia');
+          setWorkoutData(apiData);
+        } else {
+          console.warn(`⚠️ [Display] Nenhum treino encontrado para ${dayParam}`);
+        }
       } else {
-        console.error('❌ [Display] Treino não encontrado');
+        // Padrão: Segunda-feira
+        console.log('📅 [Display] Usando padrão: Segunda-feira');
+        const apiData = await fetchTreinoPorDia('Segunda-feira');
+        if (apiData) {
+          console.log('✅ [Display] Treino carregado padrão');
+          setWorkoutData(apiData);
+        }
       }
-    } catch (err) {
-      console.error('❌ [Display] Erro ao carregar treino:', err);
-    }
-  };
+    };
 
-  const loadTreinoPorDia = async (dia: string) => {
-    console.log(`📡 [Display] Buscando treino para dia: ${dia}`);
-    try {
-      const apiData = await fetchTreinoPorDia(dia);
-      console.log('✅ [Display] Treino carregado:', apiData);
-      
-      if (apiData) {
-        setWorkoutData(apiData);
-      } else {
-        console.warn(`⚠️ [Display] Nenhum treino encontrado para ${dia}`);
-      }
-    } catch (err) {
-      console.error('❌ [Display] Erro ao carregar treino:', err);
-    }
-  };
+    loadWorkout();
+  }, []); // ✅ VAZIO - executa UMA VEZ
 
   // Initialize timers when workout data changes
   useEffect(() => {
@@ -107,7 +95,7 @@ export default function Display() {
           isFinished: false,
         };
       });
-      console.log('✅ [Display] Timers inicializados:', initialStates);
+      console.log('✅ [Display] Timers inicializados');
       setTimerStates(initialStates);
     }
   }, [workoutData]);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { WorkoutData } from '@/components/WorkoutForm';
 
 export interface WorkoutData {
@@ -23,7 +23,7 @@ export function useTreinosAPI() {
   const [error, setError] = useState<string | null>(null);
 
   // Recuperar todos os treinos
-  const fetchTreinos = async () => {
+  const fetchTreinos = useCallback(async () => {
     console.log('🔄 [useTreinosAPI] Iniciando fetchTreinos...');
     setLoading(true);
     setError(null);
@@ -39,8 +39,7 @@ export function useTreinosAPI() {
       }
       
       const data = await response.json();
-      console.log('✅ [useTreinosAPI] Treinos recebidos:', data);
-      console.log('📈 [useTreinosAPI] Total:', data.length);
+      console.log('✅ [useTreinosAPI] Treinos recebidos:', data.length);
       
       // ✅ MAPEAMENTO CORRETO - INCLUI SECTIONS!
       const mappedData = data.map((t: any) => ({
@@ -60,7 +59,7 @@ export function useTreinosAPI() {
           : [],
       }));
       
-      console.log('🔄 [useTreinosAPI] Dados mapeados:', mappedData);
+      console.log('✅ [useTreinosAPI] Dados mapeados, total:', mappedData.length);
       setTreinos(mappedData);
       return mappedData;
     } catch (err) {
@@ -71,10 +70,10 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Recuperar treino de um dia específico
-  const fetchTreinoPorDia = async (dia: string): Promise<WorkoutData | null> => {
+  const fetchTreinoPorDia = useCallback(async (dia: string): Promise<WorkoutData | null> => {
     console.log(`🔍 [useTreinosAPI] Buscando treino para dia: ${dia}`);
     setLoading(true);
     setError(null);
@@ -91,7 +90,7 @@ export function useTreinosAPI() {
       }
       
       const data = await response.json();
-      console.log('✅ [useTreinosAPI] Treino encontrado:', data);
+      console.log('✅ [useTreinosAPI] Treino encontrado');
       
       // ✅ MAPEAMENTO CORRETO COM SECTIONS
       const mapped: WorkoutData = {
@@ -111,7 +110,6 @@ export function useTreinosAPI() {
           : [],
       };
       
-      console.log('🔄 [useTreinosAPI] Dados mapeados:', mapped);
       return mapped;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -121,10 +119,10 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Recuperar treino por ID
-  const fetchTreinoById = async (id: number): Promise<WorkoutData | null> => {
+  const fetchTreinoById = useCallback(async (id: number): Promise<WorkoutData | null> => {
     console.log(`🔍 [useTreinosAPI] Buscando treino por ID: ${id}`);
     setLoading(true);
     setError(null);
@@ -141,7 +139,7 @@ export function useTreinosAPI() {
       }
       
       const data = await response.json();
-      console.log('✅ [useTreinosAPI] Treino encontrado:', data);
+      console.log('✅ [useTreinosAPI] Treino encontrado');
       
       // ✅ MAPEAMENTO CORRETO COM SECTIONS
       const mapped: WorkoutData = {
@@ -161,7 +159,6 @@ export function useTreinosAPI() {
           : [],
       };
       
-      console.log('🔄 [useTreinosAPI] Dados mapeados:', mapped);
       return mapped;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -171,16 +168,15 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Salvar novo treino
-  const saveTreino = async (workout: WorkoutData): Promise<boolean> => {
-    console.log('💾 [useTreinosAPI] Salvando novo treino:', workout);
+  const saveTreino = useCallback(async (workout: WorkoutData): Promise<boolean> => {
+    console.log('💾 [useTreinosAPI] Salvando novo treino');
     setLoading(true);
     setError(null);
     try {
       const url = `${API_BASE}/treinos`;
-      console.log('📡 [useTreinosAPI] POST:', url);
       
       const payload = {
         data: workout.date,
@@ -193,7 +189,6 @@ export function useTreinosAPI() {
           ordem: idx,
         })),
       };
-      console.log('📦 [useTreinosAPI] Payload:', payload);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -212,8 +207,7 @@ export function useTreinosAPI() {
         throw new Error(`Erro ${response.status}: ${errorData}`);
       }
       
-      const data = await response.json();
-      console.log('✅ [useTreinosAPI] Treino salvo com sucesso:', data);
+      console.log('✅ [useTreinosAPI] Treino salvo com sucesso');
       
       // Recarregar treinos
       await fetchTreinos();
@@ -227,16 +221,15 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchTreinos]);
 
   // Atualizar treino
-  const updateTreino = async (id: number, workout: WorkoutData): Promise<boolean> => {
-    console.log(`🔄 [useTreinosAPI] Atualizando treino ${id}:`, workout);
+  const updateTreino = useCallback(async (id: number, workout: WorkoutData): Promise<boolean> => {
+    console.log(`🔄 [useTreinosAPI] Atualizando treino ${id}`);
     setLoading(true);
     setError(null);
     try {
       const url = `${API_BASE}/treinos/${id}`;
-      console.log('📡 [useTreinosAPI] PUT:', url);
       
       const payload = {
         data: workout.date,
@@ -249,7 +242,6 @@ export function useTreinosAPI() {
           ordem: idx,
         })),
       };
-      console.log('📦 [useTreinosAPI] Payload:', payload);
       
       const response = await fetch(url, {
         method: 'PUT',
@@ -282,16 +274,15 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchTreinos]);
 
   // Deletar treino
-  const deleteTreino = async (id: number): Promise<boolean> => {
+  const deleteTreino = useCallback(async (id: number): Promise<boolean> => {
     console.log(`🗑️ [useTreinosAPI] Deletando treino ${id}`);
     setLoading(true);
     setError(null);
     try {
       const url = `${API_BASE}/treinos/${id}`;
-      console.log('📡 [useTreinosAPI] DELETE:', url);
       
       const response = await fetch(url, {
         method: 'DELETE',
@@ -323,7 +314,7 @@ export function useTreinosAPI() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchTreinos]);
 
   return {
     treinos,
