@@ -66,6 +66,9 @@ export default function Editor() {
 
   const handleSaveWorkout = (data: WorkoutData) => {
     console.log('💾 [Editor] handleSaveWorkout chamado com dados:', data);
+    console.log('  Sections:', data.sections);
+    console.log('  Total de sections:', data.sections.length);
+    
     const finalData = { ...data, dayOfWeek: selectedDay };
     console.log('📝 [Editor] Dados finais para preview:', finalData);
     setWorkoutData(finalData);
@@ -78,6 +81,7 @@ export default function Editor() {
     console.log('  isEditing:', isEditing);
     console.log('  treinoId:', treinoId);
     console.log('  workoutData:', workoutData);
+    console.log('  workoutData.sections:', workoutData?.sections);
 
     if (!workoutData) {
       console.error('❌ [Editor] workoutData é null!');
@@ -196,6 +200,7 @@ export default function Editor() {
 
             {/* Sections Preview */}
             <div className="space-y-6">
+              <h3 className="text-lg font-mono tracking-widest text-[#FF6B35]">SEÇÕES ({workoutData.sections?.length || 0})</h3>
               {workoutData.sections && workoutData.sections.length > 0 ? (
                 workoutData.sections.map((section, idx) => (
                   <div

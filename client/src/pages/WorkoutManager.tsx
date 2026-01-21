@@ -35,6 +35,11 @@ export default function WorkoutManager() {
     console.log('📊 [WorkoutManager] Treinos atualizados:', treinos.length);
     treinos.forEach((t, idx) => {
       console.log(`  [${idx}] ID: ${t.id}, Dia: ${t.dayOfWeek}, Foco: ${t.focusTechnique}, Seções: ${t.sections?.length || 0}`);
+      if (t.sections && t.sections.length > 0) {
+        t.sections.forEach((s, sidx) => {
+          console.log(`    📍 Section ${sidx}: ${s.title} (${s.durationMinutes}' - ${s.content.length} items)`);
+        });
+      }
     });
   }, [treinos]);
 
@@ -66,6 +71,7 @@ export default function WorkoutManager() {
 
   const handleEditTreino = (treinoId: number) => {
     console.log(`✏️ [WorkoutManager] Editando treino ${treinoId}`);
+    console.log(`  Redirecionando para: /editor?id=${treinoId}`);
     setLocation(`/editor?id=${treinoId}`);
   };
 
@@ -161,6 +167,7 @@ export default function WorkoutManager() {
                     <button
                       onClick={() => {
                         console.log(`📺 [WorkoutManager] Exibindo treino ${selectedTreino.id} na TV`);
+                        console.log(`  Redirecionando para: /display?id=${selectedTreino.id}`);
                         setLocation(`/display?id=${selectedTreino.id}`);
                       }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200"
@@ -196,13 +203,14 @@ export default function WorkoutManager() {
                         {selectedTreino.focusTechnique || 'Sem foco'}
                       </h3>
                       <p className="text-[#00D9FF] font-mono text-sm">
-                        {selectedTreino.date || 'Sem data'}
+                        {selectedTreino.date || 'Sem data'} • ID: {selectedTreino.id}
                       </p>
                     </div>
 
                     {/* Sections */}
                     {selectedTreino.sections && selectedTreino.sections.length > 0 ? (
                       <div className="space-y-4">
+                        <p className="text-sm text-[#AAAAAA] mb-4">Total de seções: {selectedTreino.sections.length}</p>
                         {selectedTreino.sections.map((section, idx) => (
                           <div key={section.id} className="border-l-4 border-[#FF6B35] pl-4 py-2">
                             <div className="flex items-center justify-between mb-2">
@@ -223,7 +231,7 @@ export default function WorkoutManager() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-[#AAAAAA]">Nenhuma seção adicionada</p>
+                      <p className="text-[#AAAAAA]">❌ Nenhuma seção adicionada</p>
                     )}
                   </div>
                 ) : (
