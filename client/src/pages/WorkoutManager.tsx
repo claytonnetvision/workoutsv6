@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
-import { Trash2, Plus, Eye, Edit2, Menu, Upload } from 'lucide-react';
+import { Trash2, Plus, Eye, Edit2, Menu, Upload, BookOpen } from 'lucide-react';
 
 interface Treino {
   id: number;
@@ -96,7 +96,14 @@ export default function WorkoutManager() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* ✅ NOVO: Botão flutuante /import-pdf - Mobile */}
-      <div className="fixed top-4 right-4 z-50 md:hidden">
+      <div className="fixed top-4 right-4 z-50 md:hidden space-y-2">
+        <button
+          onClick={() => setLocation('/library')}
+          className="flex items-center justify-center w-12 h-12 bg-[#FFD700] hover:bg-[#FFD700]/80 text-black font-bold rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+          title="Biblioteca de Treinos"
+        >
+          <BookOpen size={24} />
+        </button>
         <button
           onClick={() => setLocation('/import-pdf')}
           className="flex items-center justify-center w-12 h-12 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded-full shadow-lg transition-all duration-200 hover:scale-110"
@@ -116,13 +123,21 @@ export default function WorkoutManager() {
               </h1>
               <p className="text-[#AAAAAA] text-sm">Crie, edite e organize seus treinos da semana</p>
             </div>
-            {/* ✅ NOVO: Botão /import-pdf - Desktop */}
-            <button
-              onClick={() => setLocation('/import-pdf')}
-              className="hidden md:flex items-center gap-2 px-4 py-2 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded transition-all duration-200 text-sm"
-            >
-              <Upload size={16} /> IMPORTAR PDF
-            </button>
+            {/* ✅ NOVO: Botões /library e /import-pdf - Desktop */}
+            <div className="hidden md:flex gap-2">
+              <button
+                onClick={() => setLocation('/library')}
+                className="flex items-center gap-2 px-4 py-2 bg-[#FFD700] hover:bg-[#FFD700]/80 text-black font-bold rounded transition-all duration-200 text-sm"
+              >
+                <BookOpen size={16} /> BIBLIOTECA
+              </button>
+              <button
+                onClick={() => setLocation('/import-pdf')}
+                className="flex items-center gap-2 px-4 py-2 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded transition-all duration-200 text-sm"
+              >
+                <Upload size={16} /> IMPORTAR PDF
+              </button>
+            </div>
           </div>
           {loading && <p className="text-[#00D9FF] text-xs">⏳ Carregando...</p>}
         </div>
