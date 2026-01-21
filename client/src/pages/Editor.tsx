@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useWorkoutStorage } from '@/hooks/useWorkoutStorage';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
 import WorkoutForm, { WorkoutData } from '@/components/WorkoutForm';
 import { Eye, Edit2, ChevronLeft } from 'lucide-react';
 
 export default function Editor() {
   const [, setLocation] = useLocation();
-  const { saveWorkout, getWorkout, DAYS } = useWorkoutStorage();
   const { saveTreino, updateTreino, fetchTreinoById, loading: apiLoading } = useTreinosAPI();
   const [selectedDay, setSelectedDay] = useState<string>('Segunda-feira');
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
@@ -16,41 +14,50 @@ export default function Editor() {
   const [treinoId, setTreinoId] = useState<number | null>(null);
   const [loadingData, setLoadingData] = useState(false);
 
+  const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
+
   // Get day and id from URL params
   useEffect(() => {
+    console.log('🚀 [Editor] Componente montado');
     const params = new URLSearchParams(window.location.search);
     const dayParam = params.get('day');
     const idParam = params.get('id');
 
+    console.log('🔍 [Editor] URL params - day:', dayParam, 'id:', idParam);
+
     if (idParam) {
       // Carregando treino existente do banco
+      console.log(`📥 [Editor] Modo EDIÇÃO - Carregando treino ID: ${idParam}`);
       setIsEditing(true);
       setTreinoId(parseInt(idParam));
       loadTreinoFromDatabase(parseInt(idParam));
     } else if (dayParam && DAYS.includes(dayParam)) {
       // Criando novo treino
+      console.log(`➕ [Editor] Modo CRIAR - Dia selecionado: ${dayParam}`);
       setSelectedDay(dayParam);
-      const saved = getWorkout(dayParam);
-      if (saved) {
-        setWorkoutData(saved);
-      }
     }
-  }, [DAYS, getWorkout]);
+  }, []);
 
   const loadTreinoFromDatabase = async (id: number) => {
+    console.log(`📡 [Editor] Iniciando carregamento do treino ${id}...`);
     setLoadingData(true);
     try {
       const treino = await fetchTreinoById(id);
+      console.log('✅ [Editor] Treino carregado:', treino);
+      
       if (treino) {
+        // ✅ Dados já vêm no formato correto de useTreinosAPI
+        console.log('🔄 [Editor] Dados formatados:', treino);
         setWorkoutData(treino);
         setSelectedDay(treino.dayOfWeek);
       } else {
-        alert('❌ Erro ao carregar treino');
+        console.error('❌ [Editor] Treino não encontrado');
+        alert('Erro ao carregar treino');
         setLocation('/manager');
       }
     } catch (err) {
-      console.error('Erro ao carregar treino:', err);
-      alert('❌ Erro ao carregar treino');
+      console.error('❌ [Editor] Erro ao carregar treino:', err);
+      alert('Erro ao carregar treino');
       setLocation('/manager');
     } finally {
       setLoadingData(false);
@@ -58,66 +65,74 @@ export default function Editor() {
   };
 
   const handleSaveWorkout = (data: WorkoutData) => {
+    console.log('💾 [Editor] handleSaveWorkout chamado com dados:', data);
     const finalData = { ...data, dayOfWeek: selectedDay };
+    console.log('📝 [Editor] Dados finais para preview:', finalData);
     setWorkoutData(finalData);
-    
-    // Se não estiver editando, salvar no localStorage também
-    if (!isEditing) {
-      saveWorkout(selectedDay, finalData);
-    }
-    
+    // ✅ NÃO SALVA EM LOCALSTORAGE - APENAS MOSTRA PREVIEW
     setShowPreview(true);
   };
 
   const handleSaveToDatabase = async () => {
-    if (!workoutData) return;
+    console.log('🔄 [Editor] handleSaveToDatabase chamado');
+    console.log('  isEditing:', isEditing);
+    console.log('  treinoId:', treinoId);
+    console.log('  workoutData:', workoutData);
+
+    if (!workoutData) {
+      console.error('❌ [Editor] workoutData é null!');
+      return;
+    }
 
     try {
       let success = false;
       
       if (isEditing && treinoId) {
         // Atualizar treino existente
+        console.log(`🔄 [Editor] Atualizando treino ${treinoId}...`);
         success = await updateTreino(treinoId, workoutData);
         if (success) {
+          console.log('✅ [Editor] Treino atualizado com sucesso!');
           alert('✅ Treino atualizado com sucesso!');
         }
       } else {
         // Salvar novo treino
+        console.log('➕ [Editor] Salvando novo treino...');
         success = await saveTreino(workoutData);
         if (success) {
+          console.log('✅ [Editor] Treino salvo com sucesso!');
           alert('✅ Treino salvo no banco de dados com sucesso!');
         }
       }
       
       if (success) {
+        console.log('🔄 [Editor] Redirecionando para /manager');
         setLocation('/manager');
       } else {
+        console.error('❌ [Editor] Erro ao salvar treino no banco de dados');
         alert('❌ Erro ao salvar treino no banco de dados');
       }
     } catch (err) {
-      console.error('Erro:', err);
+      console.error('❌ [Editor] Erro:', err);
       alert('❌ Erro ao salvar treino');
     }
   };
 
   const handleEditAgain = () => {
+    console.log('✏️ [Editor] Voltando para edição');
     setShowPreview(false);
   };
 
   const handleChangeDay = (newDay: string) => {
+    console.log(`📅 [Editor] Mudando dia para: ${newDay}`);
     if (isEditing) {
-      // Se estiver editando, não permitir mudar dia
+      console.warn('⚠️ [Editor] Não é possível mudar o dia ao editar um treino existente');
       alert('Não é possível mudar o dia ao editar um treino existente');
       return;
     }
     
     setSelectedDay(newDay);
-    const saved = getWorkout(newDay);
-    if (saved) {
-      setWorkoutData(saved);
-    } else {
-      setWorkoutData(null);
-    }
+    setWorkoutData(null);
     setShowPreview(false);
   };
 
@@ -148,7 +163,10 @@ export default function Editor() {
                 <Edit2 size={18} /> EDITAR
               </button>
               <button
-                onClick={() => setLocation(`/display?day=${selectedDay}`)}
+                onClick={() => {
+                  console.log(`📺 [Editor] Exibindo na TV com day=${selectedDay}`);
+                  setLocation(`/display?day=${selectedDay}`);
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded transition-all duration-200"
               >
                 <Eye size={18} /> EXIBIR NA TV
@@ -178,40 +196,44 @@ export default function Editor() {
 
             {/* Sections Preview */}
             <div className="space-y-6">
-              {workoutData.sections.map((section, idx) => (
-                <div
-                  key={section.id}
-                  className="neon-box p-6 md:p-8 rounded-lg"
-                >
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <h2 className="text-3xl md:text-4xl font-bold text-[#FF6B35] tracking-wider mb-2">
-                        {section.title}
-                      </h2>
-                      <p className="text-[#00D9FF] font-mono text-sm">
-                        {section.durationMinutes}' minutos
-                      </p>
+              {workoutData.sections && workoutData.sections.length > 0 ? (
+                workoutData.sections.map((section, idx) => (
+                  <div
+                    key={section.id}
+                    className="neon-box p-6 md:p-8 rounded-lg"
+                  >
+                    <div className="flex items-start justify-between mb-6">
+                      <div>
+                        <h2 className="text-3xl md:text-4xl font-bold text-[#FF6B35] tracking-wider mb-2">
+                          {section.title}
+                        </h2>
+                        <p className="text-[#00D9FF] font-mono text-sm">
+                          {section.durationMinutes}' minutos
+                        </p>
+                      </div>
+                      <span className="px-4 py-2 border border-[#FF6B35] rounded text-[#FF6B35] font-mono text-sm">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
                     </div>
-                    <span className="px-4 py-2 border border-[#FF6B35] rounded text-[#FF6B35] font-mono text-sm">
-                      {String(idx + 1).padStart(2, '0')}
-                    </span>
-                  </div>
 
-                  {section.content.length > 0 && (
-                    <ul className="space-y-2 ml-4">
-                      {section.content.map((item, itemIdx) => (
-                        <li
-                          key={itemIdx}
-                          className="text-base md:text-lg text-white/90 flex items-start gap-3"
-                        >
-                          <span className="text-[#FF6B35] font-bold mt-1">▸</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
+                    {section.content && section.content.length > 0 && (
+                      <ul className="space-y-2 ml-4">
+                        {section.content.map((item, itemIdx) => (
+                          <li
+                            key={itemIdx}
+                            className="text-base md:text-lg text-white/90 flex items-start gap-3"
+                          >
+                            <span className="text-[#FF6B35] font-bold mt-1">▸</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-[#AAAAAA]">Nenhuma seção adicionada</p>
+              )}
             </div>
 
             {/* Save to Database Button */}
@@ -237,7 +259,10 @@ export default function Editor() {
         <div className="container py-4">
           <div className="flex items-center justify-between mb-4">
             <button
-              onClick={() => setLocation('/manager')}
+              onClick={() => {
+                console.log('🔙 [Editor] Voltando para /manager');
+                setLocation('/manager');
+              }}
               className="flex items-center gap-2 px-3 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
             >
               <ChevronLeft size={16} /> VOLTAR

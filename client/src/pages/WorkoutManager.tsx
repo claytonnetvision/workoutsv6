@@ -5,9 +5,9 @@ import { Trash2, Plus, Eye, Edit2 } from 'lucide-react';
 
 interface Treino {
   id: number;
-  data: string;
-  dia_semana: string;
-  foco_tecnico: string;
+  date: string;
+  dayOfWeek: string;
+  focusTechnique: string;
   sections?: Array<{
     id: string;
     title: string;
@@ -26,28 +26,44 @@ export default function WorkoutManager() {
 
   // Carregar treinos do banco ao montar
   useEffect(() => {
+    console.log('🚀 [WorkoutManager] Componente montado, carregando treinos...');
     fetchTreinos();
   }, [fetchTreinos]);
 
+  // Log quando treinos mudam
+  useEffect(() => {
+    console.log('📊 [WorkoutManager] Treinos atualizados:', treinos);
+    console.log('📈 [WorkoutManager] Total de treinos:', treinos.length);
+    treinos.forEach((t, idx) => {
+      console.log(`  [${idx}] ID: ${t.id}, Dia: ${t.dayOfWeek}, Foco: ${t.focusTechnique}, Seções: ${t.sections?.length || 0}`);
+    });
+  }, [treinos]);
+
   // Filtrar treinos por dia
   const treinosPorDia = treinos.reduce((acc, treino) => {
-    if (!acc[treino.dia_semana]) {
-      acc[treino.dia_semana] = [];
+    if (!acc[treino.dayOfWeek]) {
+      acc[treino.dayOfWeek] = [];
     }
-    acc[treino.dia_semana].push(treino);
+    acc[treino.dayOfWeek].push(treino);
     return acc;
   }, {} as Record<string, Treino[]>);
+
+  console.log('🗂️ [WorkoutManager] Treinos por dia:', treinosPorDia);
 
   const selectedTreino = selectedTreinoId 
     ? treinos.find(t => t.id === selectedTreinoId)
     : null;
 
+  console.log('👁️ [WorkoutManager] Treino selecionado:', selectedTreino);
+
   const handleDelete = async (id: number, dia: string) => {
+    console.log(`🗑️ [WorkoutManager] Deletando treino ${id} de ${dia}`);
     if (window.confirm(`Tem certeza que deseja deletar o treino de ${dia}?`)) {
       const success = await deleteTreino(id);
       if (success) {
         alert('✅ Treino deletado com sucesso!');
         setSelectedTreinoId(null);
+        console.log('🔄 [WorkoutManager] Recarregando treinos após deletar...');
         await fetchTreinos();
       } else {
         alert('❌ Erro ao deletar treino');
@@ -56,11 +72,26 @@ export default function WorkoutManager() {
   };
 
   const handleEditTreino = (treinoId: number) => {
+    console.log(`✏️ [WorkoutManager] Editando treino ${treinoId}`);
     setLocation(`/editor?id=${treinoId}`);
   };
 
   const handleCreateNewTreino = (dia: string) => {
+    console.log(`➕ [WorkoutManager] Criando novo treino para ${dia}`);
     setLocation(`/editor?day=${dia}`);
+  };
+
+  const handleSelectDay = (day: string) => {
+    console.log(`📅 [WorkoutManager] Selecionando dia: ${day}`);
+    setSelectedDay(day);
+    const treinosDodia = treinosPorDia[day] || [];
+    if (treinosDodia.length > 0) {
+      console.log(`  Treinos encontrados para ${day}:`, treinosDodia);
+      setSelectedTreinoId(treinosDodia[0].id);
+    } else {
+      console.log(`  Nenhum treino para ${day}`);
+      setSelectedTreinoId(null);
+    }
   };
 
   return (
@@ -72,6 +103,7 @@ export default function WorkoutManager() {
             GERENCIAR TREINOS
           </h1>
           <p className="text-[#AAAAAA] text-sm">Crie, edite e organize seus treinos da semana</p>
+          {loading && <p className="text-[#00D9FF] text-xs mt-2">⏳ Carregando...</p>}
         </div>
       </header>
 
@@ -98,14 +130,7 @@ export default function WorkoutManager() {
                           ? 'border-[#00D9FF] hover:border-[#FF6B35]'
                           : 'border-[#333333] hover:border-[#00D9FF]'
                       }`}
-                      onClick={() => {
-                        setSelectedDay(day);
-                        if (temTreino) {
-                          setSelectedTreinoId(treinosDodia[0].id);
-                        } else {
-                          setSelectedTreinoId(null);
-                        }
-                      }}
+                      onClick={() => handleSelectDay(day)}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm">{day}</span>
@@ -141,7 +166,10 @@ export default function WorkoutManager() {
                 {selectedTreino && (
                   <>
                     <button
-                      onClick={() => setLocation(`/display?id=${selectedTreino.id}`)}
+                      onClick={() => {
+                        console.log(`📺 [WorkoutManager] Exibindo treino ${selectedTreino.id} na TV`);
+                        setLocation(`/display?id=${selectedTreino.id}`);
+                      }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200"
                     >
                       <Eye size={18} /> EXIBIR NA TV
@@ -153,7 +181,7 @@ export default function WorkoutManager() {
                       <Edit2 size={18} /> EDITAR
                     </button>
                     <button
-                      onClick={() => handleDelete(selectedTreino.id, selectedTreino.dia_semana)}
+                      onClick={() => handleDelete(selectedTreino.id, selectedTreino.dayOfWeek)}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-[#FF006E] hover:bg-[#FF006E]/10 text-[#FF006E] font-bold rounded transition-all duration-200"
                     >
                       <Trash2 size={18} /> DELETAR
@@ -172,10 +200,10 @@ export default function WorkoutManager() {
                   <div className="neon-box p-6 md:p-8 rounded-lg">
                     <div className="mb-6">
                       <h3 className="text-3xl md:text-4xl font-bold text-[#FF6B35] mb-2">
-                        {selectedTreino.foco_tecnico || 'Sem foco'}
+                        {selectedTreino.focusTechnique || 'Sem foco'}
                       </h3>
                       <p className="text-[#00D9FF] font-mono text-sm">
-                        {selectedTreino.data || 'Sem data'}
+                        {selectedTreino.date || 'Sem data'}
                       </p>
                     </div>
 
@@ -188,7 +216,7 @@ export default function WorkoutManager() {
                               <h4 className="text-xl font-bold text-[#FF6B35]">{section.title}</h4>
                               <span className="text-[#00D9FF] text-sm font-mono">{section.durationMinutes}'</span>
                             </div>
-                            {section.content.length > 0 && (
+                            {section.content && section.content.length > 0 && (
                               <ul className="space-y-1">
                                 {section.content.map((item, itemIdx) => (
                                   <li key={itemIdx} className="text-white/70 text-sm flex items-start gap-2">

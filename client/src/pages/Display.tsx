@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
-import { useWorkoutStorage } from '@/hooks/useWorkoutStorage';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
 import { Clock, Zap, Target, Flame, Play, Pause, RotateCcw, Edit2, ChevronLeft } from 'lucide-react';
 import { WorkoutData } from '@/components/WorkoutForm';
@@ -28,8 +27,7 @@ const formatTime = (seconds: number): string => {
 
 export default function Display() {
   const [, setLocation] = useLocation();
-  const { getWorkout, DAYS } = useWorkoutStorage();
-  const { fetchTreinoPorDia, loading: apiLoading } = useTreinosAPI();
+  const { fetchTreinoPorDia, fetchTreinoById, loading: apiLoading } = useTreinosAPI();
   const [selectedDay, setSelectedDay] = useState<string>('Segunda-feira');
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [activeSection, setActiveSection] = useState(0);
@@ -37,38 +35,70 @@ export default function Display() {
   const [timerStates, setTimerStates] = useState<Record<string, TimerState>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
+
   // Load workout data from URL params
   useEffect(() => {
+    console.log('🚀 [Display] Componente montado');
     const params = new URLSearchParams(window.location.search);
     const dayParam = params.get('day');
-    
-    if (dayParam && DAYS.includes(dayParam)) {
-      setSelectedDay(dayParam);
-    }
-  }, [DAYS]);
+    const idParam = params.get('id');
 
-  // Load workout when day changes (try API first, then localStorage)
-  useEffect(() => {
-    const loadWorkout = async () => {
-      // Tenta carregar do banco de dados primeiro
-      const apiData = await fetchTreinoPorDia(selectedDay);
+    console.log('🔍 [Display] URL params - day:', dayParam, 'id:', idParam);
+
+    if (idParam) {
+      // ✅ CARREGANDO POR ID (NOVO TREINO)
+      console.log(`📥 [Display] Carregando treino por ID: ${idParam}`);
+      loadTreinoById(parseInt(idParam));
+    } else if (dayParam && DAYS.includes(dayParam)) {
+      // ✅ CARREGANDO POR DIA (COMPATIBILIDADE)
+      console.log(`📅 [Display] Carregando treino por dia: ${dayParam}`);
+      setSelectedDay(dayParam);
+      loadTreinoPorDia(dayParam);
+    } else {
+      // Padrão: Segunda-feira
+      console.log('📅 [Display] Usando padrão: Segunda-feira');
+      loadTreinoPorDia('Segunda-feira');
+    }
+  }, []);
+
+  const loadTreinoById = async (id: number) => {
+    console.log(`📡 [Display] Buscando treino por ID: ${id}`);
+    try {
+      const apiData = await fetchTreinoById(id);
+      console.log('✅ [Display] Treino carregado:', apiData);
+      
+      if (apiData) {
+        setWorkoutData(apiData);
+        setSelectedDay(apiData.dayOfWeek);
+      } else {
+        console.error('❌ [Display] Treino não encontrado');
+      }
+    } catch (err) {
+      console.error('❌ [Display] Erro ao carregar treino:', err);
+    }
+  };
+
+  const loadTreinoPorDia = async (dia: string) => {
+    console.log(`📡 [Display] Buscando treino para dia: ${dia}`);
+    try {
+      const apiData = await fetchTreinoPorDia(dia);
+      console.log('✅ [Display] Treino carregado:', apiData);
+      
       if (apiData) {
         setWorkoutData(apiData);
       } else {
-        // Se não encontrar no banco, tenta localStorage
-        const localData = getWorkout(selectedDay);
-        if (localData) {
-          setWorkoutData(localData);
-        }
+        console.warn(`⚠️ [Display] Nenhum treino encontrado para ${dia}`);
       }
-    };
-
-    loadWorkout();
-  }, [selectedDay, getWorkout, fetchTreinoPorDia]);
+    } catch (err) {
+      console.error('❌ [Display] Erro ao carregar treino:', err);
+    }
+  };
 
   // Initialize timers when workout data changes
   useEffect(() => {
-    if (workoutData) {
+    console.log('🔄 [Display] Inicializando timers...');
+    if (workoutData && workoutData.sections) {
       const initialStates: Record<string, TimerState> = {};
       workoutData.sections.forEach((section: any) => {
         initialStates[section.id] = {
@@ -77,6 +107,7 @@ export default function Display() {
           isFinished: false,
         };
       });
+      console.log('✅ [Display] Timers inicializados:', initialStates);
       setTimerStates(initialStates);
     }
   }, [workoutData]);
@@ -167,7 +198,7 @@ export default function Display() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-[#FF6B35]">Carregando treino...</h1>
+          <h1 className="text-4xl font-bold text-[#FF6B35]">⏳ Carregando treino...</h1>
           <p className="text-[#AAAAAA]">Aguarde um momento</p>
         </div>
       </div>
@@ -178,13 +209,13 @@ export default function Display() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-[#FF6B35]">Nenhum treino carregado</h1>
+          <h1 className="text-4xl font-bold text-[#FF6B35]">❌ Nenhum treino carregado</h1>
           <p className="text-[#AAAAAA]">Crie um treino primeiro na página de editor</p>
           <button
-            onClick={() => setLocation('/editor')}
+            onClick={() => setLocation('/manager')}
             className="px-6 py-3 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded transition-all duration-200"
           >
-            Ir para Editor
+            Ir para Gerenciador
           </button>
         </div>
       </div>
@@ -210,7 +241,10 @@ export default function Display() {
               <ChevronLeft size={16} /> VOLTAR
             </button>
             <button
-              onClick={() => setLocation(`/editor?day=${selectedDay}`)}
+              onClick={() => {
+                console.log(`✏️ [Display] Editando treino do dia ${selectedDay}`);
+                setLocation(`/editor?day=${selectedDay}`);
+              }}
               className="flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
             >
               <Edit2 size={16} /> EDITAR
@@ -260,161 +294,169 @@ export default function Display() {
               <h2 className="text-sm font-mono tracking-widest text-[#AAAAAA] mb-6">
                 SEQUÊNCIA
               </h2>
-              {workoutData.sections.map((section, idx) => (
-                <button
-                  key={section.id}
-                  onClick={() => {
-                    const element = document.getElementById(section.id);
-                    element?.scrollIntoView({ behavior: 'smooth' });
-                    setActiveSection(idx);
-                  }}
-                  className={`w-full text-left p-3 md:p-4 rounded-lg transition-all duration-300 font-mono text-xs md:text-sm tracking-wider ${
-                    activeSection === idx
-                      ? 'neon-box scale-105'
-                      : 'border border-[#333333] hover:border-[#FF6B35]/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#FF6B35]">
-                      {String(idx + 1).padStart(2, '0')}
-                    </span>
-                    <span className="text-white/70">{section.title}</span>
-                  </div>
-                  <div className="text-[#00D9FF] text-xs mt-1">{section.durationMinutes}'</div>
-                  {timerStates[section.id] && (
-                    <div className="text-[#FF6B35] text-xs mt-2 font-bold">
-                      {formatTime(timerStates[section.id].timeLeft)}
+              {workoutData.sections && workoutData.sections.length > 0 ? (
+                workoutData.sections.map((section, idx) => (
+                  <button
+                    key={section.id}
+                    onClick={() => {
+                      const element = document.getElementById(section.id);
+                      element?.scrollIntoView({ behavior: 'smooth' });
+                      setActiveSection(idx);
+                    }}
+                    className={`w-full text-left p-3 md:p-4 rounded-lg transition-all duration-300 font-mono text-xs md:text-sm tracking-wider ${
+                      activeSection === idx
+                        ? 'neon-box scale-105'
+                        : 'border border-[#333333] hover:border-[#FF6B35]/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#FF6B35]">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                      <span className="text-white/70">{section.title}</span>
                     </div>
-                  )}
-                </button>
-              ))}
+                    <div className="text-[#00D9FF] text-xs mt-1">{section.durationMinutes}'</div>
+                    {timerStates[section.id] && (
+                      <div className="text-[#FF6B35] text-xs mt-2 font-bold">
+                        {formatTime(timerStates[section.id].timeLeft)}
+                      </div>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <p className="text-[#AAAAAA]">Nenhuma seção disponível</p>
+              )}
             </div>
           </div>
 
           {/* Content Area */}
           <div className="lg:col-span-9 order-1 lg:order-2 space-y-8 md:space-y-12">
-            {workoutData.sections.map((section, idx) => (
-              <section
-                key={section.id}
-                id={section.id}
-                className="neon-box p-6 md:p-8 rounded-lg transition-all duration-500 hover:scale-102 relative overflow-hidden"
-              >
-                {/* Timer Progress Bar */}
-                <div
-                  className="absolute top-0 left-0 h-1 bg-gradient-to-r from-[#FF6B35] to-[#00D9FF]"
-                  style={{
-                    width: `${getTimerProgressPercentage(section.id)}%`,
-                    transition: 'width 0.1s linear',
-                  }}
-                />
+            {workoutData.sections && workoutData.sections.length > 0 ? (
+              workoutData.sections.map((section, idx) => (
+                <section
+                  key={section.id}
+                  id={section.id}
+                  className="neon-box p-6 md:p-8 rounded-lg transition-all duration-500 hover:scale-102 relative overflow-hidden"
+                >
+                  {/* Timer Progress Bar */}
+                  <div
+                    className="absolute top-0 left-0 h-1 bg-gradient-to-r from-[#FF6B35] to-[#00D9FF]"
+                    style={{
+                      width: `${getTimerProgressPercentage(section.id)}%`,
+                      transition: 'width 0.1s linear',
+                    }}
+                  />
 
-                {/* Section Header */}
-                <div className="flex items-start justify-between mb-6 md:mb-8">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 md:gap-4 mb-2">
-                      <div className="text-[#FF6B35] pulse-glow">
-                        {getIcon(section.title)}
+                  {/* Section Header */}
+                  <div className="flex items-start justify-between mb-6 md:mb-8">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 md:gap-4 mb-2">
+                        <div className="text-[#FF6B35] pulse-glow">
+                          {getIcon(section.title)}
+                        </div>
+                        <h2 className="text-3xl md:text-5xl font-bold tracking-wider text-[#FF6B35]">
+                          {section.title}
+                        </h2>
                       </div>
-                      <h2 className="text-3xl md:text-5xl font-bold tracking-wider text-[#FF6B35]">
-                        {section.title}
-                      </h2>
+                      <p className="text-[#00D9FF] font-mono text-xs md:text-sm tracking-widest ml-11 md:ml-14">
+                        {section.durationMinutes} minutos
+                      </p>
                     </div>
-                    <p className="text-[#00D9FF] font-mono text-xs md:text-sm tracking-widest ml-11 md:ml-14">
-                      {section.durationMinutes} minutos
-                    </p>
-                  </div>
-                  <div className="text-right ml-4">
-                    <span className="inline-block px-3 md:px-4 py-1 md:py-2 border border-[#FF6B35] rounded text-[#FF6B35] font-mono text-xs md:text-sm">
-                      {String(idx + 1).padStart(2, '0')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Timer Display */}
-                <div className="mb-6 md:mb-8 p-4 md:p-6 neon-box rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[#AAAAAA] font-mono text-xs md:text-sm tracking-widest">
-                      CRONÔMETRO
-                    </span>
-                    <span
-                      className={`text-xs md:text-sm font-mono ${
-                        timerStates[section.id]?.isFinished
-                          ? 'text-[#FF006E] animate-pulse'
-                          : 'text-[#00D9FF]'
-                      }`}
-                    >
-                      {timerStates[section.id]?.isFinished ? 'CONCLUÍDO' : 'ATIVO'}
-                    </span>
-                  </div>
-
-                  <div className="text-center mb-4">
-                    <div
-                      className={`text-5xl md:text-7xl font-bold font-mono tracking-wider ${
-                        timerStates[section.id]?.isFinished
-                          ? 'text-[#FF006E]'
-                          : 'text-[#FF6B35] neon-text'
-                      }`}
-                    >
-                      {timerStates[section.id]
-                        ? formatTime(timerStates[section.id].timeLeft)
-                        : '00:00'}
+                    <div className="text-right ml-4">
+                      <span className="inline-block px-3 md:px-4 py-1 md:py-2 border border-[#FF6B35] rounded text-[#FF6B35] font-mono text-xs md:text-sm">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Timer Controls */}
-                  <div className="flex gap-2 md:gap-4 justify-center">
-                    <button
-                      onClick={() => toggleTimer(section.id)}
-                      className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded transition-all duration-200 text-sm md:text-base"
-                    >
-                      {timerStates[section.id]?.isRunning ? (
-                        <>
-                          <Pause size={18} /> PAUSAR
-                        </>
-                      ) : (
-                        <>
-                          <Play size={18} /> INICIAR
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => resetTimer(section.id)}
-                      className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm md:text-base"
-                    >
-                      <RotateCcw size={18} /> RESET
-                    </button>
-                  </div>
-                </div>
+                  {/* Timer Display */}
+                  <div className="mb-6 md:mb-8 p-4 md:p-6 neon-box rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[#AAAAAA] font-mono text-xs md:text-sm tracking-widest">
+                        CRONÔMETRO
+                      </span>
+                      <span
+                        className={`text-xs md:text-sm font-mono ${
+                          timerStates[section.id]?.isFinished
+                            ? 'text-[#FF006E] animate-pulse'
+                            : 'text-[#00D9FF]'
+                        }`}
+                      >
+                        {timerStates[section.id]?.isFinished ? 'CONCLUÍDO' : 'ATIVO'}
+                      </span>
+                    </div>
 
-                {/* Section Content */}
-                {section.content.length > 0 && (
-                  <div className="ml-11 md:ml-14">
-                    <ul className="space-y-2 md:space-y-3">
-                      {section.content.map((item, itemIdx) => (
-                        <li
-                          key={itemIdx}
-                          className="text-base md:text-2xl text-white/90 font-light leading-relaxed flex items-start gap-3"
-                        >
-                          <span className="text-[#FF6B35] font-bold mt-1">▸</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                    <div className="text-center mb-4">
+                      <div
+                        className={`text-5xl md:text-7xl font-bold font-mono tracking-wider ${
+                          timerStates[section.id]?.isFinished
+                            ? 'text-[#FF006E]'
+                            : 'text-[#FF6B35] neon-text'
+                        }`}
+                      >
+                        {timerStates[section.id]
+                          ? formatTime(timerStates[section.id].timeLeft)
+                          : '00:00'}
+                      </div>
+                    </div>
 
-                {/* Decorative Elements */}
-                <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-[#333333]/50 flex justify-between items-center">
-                  <div className="text-xs text-[#AAAAAA] font-mono">
-                    SEÇÃO {String(idx + 1).padStart(2, '0')}
+                    {/* Timer Controls */}
+                    <div className="flex gap-2 md:gap-4 justify-center">
+                      <button
+                        onClick={() => toggleTimer(section.id)}
+                        className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded transition-all duration-200 text-sm md:text-base"
+                      >
+                        {timerStates[section.id]?.isRunning ? (
+                          <>
+                            <Pause size={18} /> PAUSAR
+                          </>
+                        ) : (
+                          <>
+                            <Play size={18} /> INICIAR
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => resetTimer(section.id)}
+                        className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm md:text-base"
+                      >
+                        <RotateCcw size={18} /> RESET
+                      </button>
+                    </div>
                   </div>
-                  <div className="h-1 flex-1 mx-4 bg-gradient-to-r from-[#FF6B35]/20 to-transparent rounded-full" />
-                  <div className="text-xs text-[#00D9FF] font-mono">
-                    {section.durationMinutes}'
+
+                  {/* Section Content */}
+                  {section.content && section.content.length > 0 && (
+                    <div className="ml-11 md:ml-14">
+                      <ul className="space-y-2 md:space-y-3">
+                        {section.content.map((item, itemIdx) => (
+                          <li
+                            key={itemIdx}
+                            className="text-base md:text-2xl text-white/90 font-light leading-relaxed flex items-start gap-3"
+                          >
+                            <span className="text-[#FF6B35] font-bold mt-1">▸</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Decorative Elements */}
+                  <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-[#333333]/50 flex justify-between items-center">
+                    <div className="text-xs text-[#AAAAAA] font-mono">
+                      SEÇÃO {String(idx + 1).padStart(2, '0')}
+                    </div>
+                    <div className="h-1 flex-1 mx-4 bg-gradient-to-r from-[#FF6B35]/20 to-transparent rounded-full" />
+                    <div className="text-xs text-[#00D9FF] font-mono">
+                      {section.durationMinutes}'
+                    </div>
                   </div>
-                </div>
-              </section>
-            ))}
+                </section>
+              ))
+            ) : (
+              <p className="text-[#AAAAAA] text-center">Nenhuma seção disponível</p>
+            )}
 
             {/* Footer */}
             <div className="mt-12 md:mt-16 pt-8 border-t border-[#333333] text-center">
