@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
-import { Clock, Zap, Target, Flame, Play, Pause, RotateCcw, Edit2, ChevronLeft, Menu } from 'lucide-react';
+import { Clock, Zap, Target, Flame, Play, Pause, RotateCcw, Edit2, ChevronLeft, Menu, Lock, X } from 'lucide-react';
 import { WorkoutData } from '@/components/WorkoutForm';
 
 interface TimerState {
@@ -25,6 +25,12 @@ const formatTime = (seconds: number): string => {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 };
 
+// ✅ CREDENCIAIS ADMIN
+const ADMIN_CREDENTIALS = {
+  username: 'admin',
+  password: 'admin@v6',
+};
+
 export default function Display() {
   const [, setLocation] = useLocation();
   const { fetchTreinoPorDia, fetchTreinoById, loading: apiLoading } = useTreinosAPI();
@@ -35,6 +41,13 @@ export default function Display() {
   const [timerStates, setTimerStates] = useState<Record<string, TimerState>>({});
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ✅ NOVO: Estados de autenticação
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
 
   const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
@@ -183,6 +196,29 @@ export default function Display() {
     return ((totalSeconds - timeLeft) / totalSeconds) * 100;
   };
 
+  // ✅ NOVO: Validar autenticação
+  const handleLogin = () => {
+    console.log('🔐 [Display] Tentando autenticação');
+    
+    if (authUsername === ADMIN_CREDENTIALS.username && authPassword === ADMIN_CREDENTIALS.password) {
+      console.log('✅ [Display] Autenticação bem-sucedida!');
+      setIsAdmin(true);
+      setShowAuthModal(false);
+      setAuthUsername('');
+      setAuthPassword('');
+      setAuthError('');
+    } else {
+      console.log('❌ [Display] Autenticação falhou');
+      setAuthError('Usuário ou senha incorretos');
+    }
+  };
+
+  // ✅ NOVO: Logout
+  const handleLogout = () => {
+    console.log('🚪 [Display] Saindo da autenticação');
+    setIsAdmin(false);
+  };
+
   if (apiLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -219,6 +255,28 @@ export default function Display() {
         style={{ width: `${scrollProgress}%` }}
       />
 
+      {/* ✅ NOVO: Botão ADMIN - Fixo no topo esquerdo */}
+      <div className="fixed top-4 left-4 z-50">
+        <button
+          onClick={() => {
+            if (isAdmin) {
+              handleLogout();
+            } else {
+              setShowAuthModal(true);
+            }
+          }}
+          className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-bold transition-all duration-200 ${
+            isAdmin
+              ? 'bg-[#FF006E] hover:bg-[#FF006E]/80 text-white'
+              : 'bg-[#333333] hover:bg-[#444444] text-[#AAAAAA]'
+          }`}
+          title={isAdmin ? 'Sair' : 'Autenticação'}
+        >
+          <Lock size={14} />
+          {isAdmin ? 'SAIR' : 'ADMIN'}
+        </button>
+      </div>
+
       {/* ✅ NOVO: Botão flutuante /manager - Fixo no topo direito */}
       <div className="fixed top-4 right-4 z-50 md:hidden">
         <button
@@ -234,23 +292,27 @@ export default function Display() {
       <header className="relative border-b-2 border-[#FF6B35] bg-black/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="container py-8 md:py-12">
           <div className="flex justify-between items-start mb-6">
-            {/* ✅ NOVO: Botão /manager - Desktop */}
-            <button
-              onClick={() => setLocation('/manager')}
-              className="hidden md:flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
-              title="Ir para Gerenciador"
-            >
-              <Menu size={16} /> GERENCIAR
-            </button>
-            <button
-              onClick={() => {
-                console.log(`✏️ [Display] Editando treino do dia ${selectedDay}`);
-                setLocation(`/editor?id=${workoutData.id}`);
-              }}
-              className="flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
-            >
-              <Edit2 size={16} /> EDITAR
-            </button>
+            {/* ✅ NOVO: Botões protegidos por autenticação */}
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => setLocation('/manager')}
+                  className="hidden md:flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
+                  title="Ir para Gerenciador"
+                >
+                  <Menu size={16} /> GERENCIAR
+                </button>
+                <button
+                  onClick={() => {
+                    console.log(`✏️ [Display] Editando treino do dia ${selectedDay}`);
+                    setLocation(`/editor?id=${workoutData.id}`);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm"
+                >
+                  <Edit2 size={16} /> EDITAR
+                </button>
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 items-center">
@@ -275,11 +337,9 @@ export default function Display() {
 
             {/* Focus */}
             <div className="flex items-center justify-center md:justify-end">
-              <div className="text-right">
-                <p className="text-xs md:text-sm text-[#AAAAAA] font-mono mb-2">FOCO TÉCNICO</p>
-                <p className="text-2xl md:text-3xl font-bold text-[#FFD700] tracking-wider">
-                  {workoutData.focusTechnique}
-                </p>
+              <div className="text-center md:text-right">
+                <p className="text-[#AAAAAA] text-xs md:text-sm font-mono mb-2">FOCO TÉCNICO</p>
+                <p className="text-[#FF6B35] text-2xl md:text-3xl font-bold">{workoutData.focusTechnique}</p>
               </div>
             </div>
           </div>
@@ -287,154 +347,63 @@ export default function Display() {
       </header>
 
       {/* Main Content */}
-      <main className="container py-12 md:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
-          {/* Timeline Sidebar */}
-          <div className="lg:col-span-3 order-2 lg:order-1">
-            <div className="sticky top-24 space-y-4">
-              <h2 className="text-sm font-mono tracking-widest text-[#AAAAAA] mb-6">
-                SEQUÊNCIA
-              </h2>
-              {workoutData.sections && workoutData.sections.length > 0 ? (
-                workoutData.sections.map((section, idx) => (
-                  <button
-                    key={section.id}
-                    onClick={() => {
-                      const element = document.getElementById(section.id);
-                      element?.scrollIntoView({ behavior: 'smooth' });
-                      setActiveSection(idx);
-                    }}
-                    className={`w-full text-left p-3 md:p-4 rounded-lg transition-all duration-300 font-mono text-xs md:text-sm tracking-wider ${
-                      activeSection === idx
-                        ? 'neon-box scale-105'
-                        : 'border border-[#333333] hover:border-[#FF6B35]/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-[#FF6B35]">
-                        {String(idx + 1).padStart(2, '0')}
-                      </span>
-                      <span className="text-white/70">{section.title}</span>
-                    </div>
-                    <div className="text-[#00D9FF] text-xs mt-1">{section.durationMinutes}'</div>
-                    {timerStates[section.id] && (
-                      <div className="text-[#FF6B35] text-xs mt-2 font-bold">
-                        {formatTime(timerStates[section.id].timeLeft)}
-                      </div>
-                    )}
-                  </button>
-                ))
-              ) : (
-                <p className="text-[#AAAAAA]">Nenhuma seção disponível</p>
-              )}
-            </div>
-          </div>
+      <main className="container py-12">
+        {workoutData.sections && workoutData.sections.length > 0 ? (
+          <div className="space-y-8">
+            {workoutData.sections.map((section, index) => {
+              const timerState = timerStates[section.id] || { isRunning: false, timeLeft: 0, isFinished: false };
+              const progressPercentage = getTimerProgressPercentage(section.id);
 
-          {/* Content Area */}
-          <div className="lg:col-span-9 order-1 lg:order-2 space-y-8 md:space-y-12">
-            {workoutData.sections && workoutData.sections.length > 0 ? (
-              workoutData.sections.map((section, idx) => (
-                <section
+              return (
+                <div
                   key={section.id}
-                  id={section.id}
-                  className="neon-box p-6 md:p-8 rounded-lg transition-all duration-500 hover:scale-102 relative overflow-hidden"
+                  className="neon-box p-8 md:p-12 rounded-lg border-2 border-[#FF6B35] hover:border-[#00D9FF] transition-all duration-300"
                 >
-                  {/* Timer Progress Bar */}
-                  <div
-                    className="absolute top-0 left-0 h-1 bg-gradient-to-r from-[#FF6B35] to-[#00D9FF]"
-                    style={{
-                      width: `${getTimerProgressPercentage(section.id)}%`,
-                      transition: 'width 0.1s linear',
-                    }}
-                  />
-
                   {/* Section Header */}
-                  <div className="flex items-start justify-between mb-6 md:mb-8">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 md:gap-4 mb-2">
-                        <div className="text-[#FF6B35] pulse-glow">
-                          {getIcon(section.title)}
-                        </div>
-                        <h2 className="text-3xl md:text-5xl font-bold tracking-wider text-[#FF6B35]">
+                  <div className="flex items-start justify-between mb-8">
+                    <div className="flex items-start gap-4">
+                      <div className="text-[#FF6B35]">{getIcon(section.title)}</div>
+                      <div>
+                        <p className="text-[#AAAAAA] font-mono text-xs md:text-sm mb-2">
+                          SEÇÃO {index + 1} DE {workoutData.sections.length}
+                        </p>
+                        <h2 className="text-3xl md:text-4xl font-bold text-[#FF6B35] mb-2">
                           {section.title}
                         </h2>
+                        <p className="text-[#00D9FF] font-mono text-sm md:text-base">
+                          {section.durationMinutes} minutos
+                        </p>
                       </div>
-                      <p className="text-[#00D9FF] font-mono text-xs md:text-sm tracking-widest ml-11 md:ml-14">
-                        {section.durationMinutes} minutos
+                    </div>
+                  </div>
+
+                  {/* Timer */}
+                  <div className="mb-8 p-6 bg-[#1a1a1a] rounded-lg border border-[#333333]">
+                    <p className="text-[#AAAAAA] font-mono text-xs mb-3">CRONÔMETRO</p>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className={`text-lg font-mono font-bold ${timerState.isRunning ? 'text-[#00D9FF]' : 'text-[#AAAAAA]'}`}>
+                        {timerState.isRunning ? '▶ ATIVO' : '⏸ PAUSADO'}
+                      </p>
+                      <p className="text-4xl md:text-5xl font-mono font-bold text-[#FF6B35]">
+                        {formatTime(timerState.timeLeft)}
                       </p>
                     </div>
-                    <div className="text-right ml-4">
-                      <span className="inline-block px-3 md:px-4 py-1 md:py-2 border border-[#FF6B35] rounded text-[#FF6B35] font-mono text-xs md:text-sm">
-                        {String(idx + 1).padStart(2, '0')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Timer Display */}
-                  <div className="mb-6 md:mb-8 p-4 md:p-6 neon-box rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-[#AAAAAA] font-mono text-xs md:text-sm tracking-widest">
-                        CRONÔMETRO
-                      </span>
-                      <span
-                        className={`text-xs md:text-sm font-mono ${
-                          timerStates[section.id]?.isFinished
-                            ? 'text-[#FF006E] animate-pulse'
-                            : 'text-[#00D9FF]'
-                        }`}
-                      >
-                        {timerStates[section.id]?.isFinished ? 'CONCLUÍDO' : 'ATIVO'}
-                      </span>
-                    </div>
-
-                    <div className="text-center mb-4">
+                    {/* Progress Bar */}
+                    <div className="w-full bg-[#333333] rounded-full h-2 overflow-hidden">
                       <div
-                        className={`text-5xl md:text-7xl font-bold font-mono tracking-wider ${
-                          timerStates[section.id]?.isFinished
-                            ? 'text-[#FF006E]'
-                            : 'text-[#FF6B35] neon-text'
-                        }`}
-                      >
-                        {timerStates[section.id]
-                          ? formatTime(timerStates[section.id].timeLeft)
-                          : '00:00'}
-                      </div>
-                    </div>
-
-                    {/* Timer Controls */}
-                    <div className="flex gap-2 md:gap-4 justify-center">
-                      <button
-                        onClick={() => toggleTimer(section.id)}
-                        className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[#FF6B35] hover:bg-[#FF8555] text-black font-bold rounded transition-all duration-200 text-sm md:text-base"
-                      >
-                        {timerStates[section.id]?.isRunning ? (
-                          <>
-                            <Pause size={18} /> PAUSAR
-                          </>
-                        ) : (
-                          <>
-                            <Play size={18} /> INICIAR
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => resetTimer(section.id)}
-                        className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 border-2 border-[#00D9FF] hover:bg-[#00D9FF]/10 text-[#00D9FF] font-bold rounded transition-all duration-200 text-sm md:text-base"
-                      >
-                        <RotateCcw size={18} /> RESET
-                      </button>
+                        className="h-full bg-gradient-to-r from-[#FF6B35] to-[#00D9FF] transition-all duration-300"
+                        style={{ width: `${progressPercentage}%` }}
+                      />
                     </div>
                   </div>
 
-                  {/* Section Content */}
+                  {/* Content */}
                   {section.content && section.content.length > 0 && (
-                    <div className="ml-11 md:ml-14">
-                      <ul className="space-y-2 md:space-y-3">
-                        {section.content.map((item, itemIdx) => (
-                          <li
-                            key={itemIdx}
-                            className="text-base md:text-2xl text-white/90 font-light leading-relaxed flex items-start gap-3"
-                          >
+                    <div className="mb-8 p-6 bg-[#1a1a1a] rounded-lg border border-[#333333]">
+                      <p className="text-[#AAAAAA] font-mono text-xs mb-4">CONTEÚDO</p>
+                      <ul className="space-y-3">
+                        {section.content.map((item, idx) => (
+                          <li key={idx} className="text-white/80 text-sm md:text-base flex items-start gap-3">
                             <span className="text-[#FF6B35] font-bold mt-1">▸</span>
                             <span>{item}</span>
                           </li>
@@ -443,55 +412,133 @@ export default function Display() {
                     </div>
                   )}
 
-                  {/* Decorative Elements */}
-                  <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-[#333333]/50 flex justify-between items-center">
-                    <div className="text-xs text-[#AAAAAA] font-mono">
-                      SEÇÃO {String(idx + 1).padStart(2, '0')}
-                    </div>
-                    <div className="h-1 flex-1 mx-4 bg-gradient-to-r from-[#FF6B35]/20 to-transparent rounded-full" />
-                    <div className="text-xs text-[#00D9FF] font-mono">
-                      {section.durationMinutes}'
+                  {/* Controls */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <button
+                      onClick={() => toggleTimer(section.id)}
+                      className={`px-4 py-3 font-bold rounded transition-all duration-200 flex items-center justify-center gap-2 ${
+                        timerState.isRunning
+                          ? 'bg-[#FF006E] hover:bg-[#FF006E]/80 text-white'
+                          : 'bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black'
+                      }`}
+                    >
+                      {timerState.isRunning ? <Pause size={16} /> : <Play size={16} />}
+                      {timerState.isRunning ? 'PAUSAR' : 'INICIAR'}
+                    </button>
+                    <button
+                      onClick={() => resetTimer(section.id)}
+                      className="px-4 py-3 border-2 border-[#AAAAAA] hover:border-[#FF6B35] text-[#AAAAAA] font-bold rounded transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                      <RotateCcw size={16} /> RESET
+                    </button>
+                    <div className="flex items-center justify-center px-4 py-3 bg-[#1a1a1a] rounded border border-[#333333]">
+                      <p className="text-[#FF6B35] font-mono text-sm font-bold">
+                        {timerState.isFinished ? '✅ CONCLUÍDO' : `${Math.round(progressPercentage)}%`}
+                      </p>
                     </div>
                   </div>
-                </section>
-              ))
-            ) : (
-              <p className="text-[#AAAAAA] text-center">Nenhuma seção disponível</p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="neon-box p-12 rounded-lg text-center">
+            <p className="text-[#AAAAAA] text-lg">❌ Nenhuma seção adicionada</p>
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[#333333] py-6 mt-12">
+        <div className="container text-center text-[#AAAAAA] text-sm">
+          <p>V6 CROSSFIT • BELO HORIZONTE</p>
+          <p className="mt-2 text-xs">Treino do dia • {workoutData.dayOfWeek} • {workoutData.date}</p>
+        </div>
+      </footer>
+
+      {/* ✅ NOVO: Modal de Autenticação */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="neon-box p-8 rounded-lg max-w-md w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-[#FF6B35] flex items-center gap-2">
+                <Lock size={24} /> AUTENTICAÇÃO
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAuthModal(false);
+                  setAuthError('');
+                  setAuthUsername('');
+                  setAuthPassword('');
+                }}
+                className="p-2 hover:bg-[#333333] rounded transition-all duration-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Username */}
+            <div className="mb-4">
+              <label className="block text-[#AAAAAA] font-mono text-xs mb-2">USUÁRIO</label>
+              <input
+                type="text"
+                value={authUsername}
+                onChange={(e) => {
+                  setAuthUsername(e.target.value);
+                  setAuthError('');
+                }}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                placeholder="admin"
+                className="w-full px-4 py-2 bg-[#1a1a1a] border-2 border-[#333333] rounded text-white font-mono focus:border-[#FF6B35] outline-none"
+              />
+            </div>
+
+            {/* Password */}
+            <div className="mb-6">
+              <label className="block text-[#AAAAAA] font-mono text-xs mb-2">SENHA</label>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => {
+                  setAuthPassword(e.target.value);
+                  setAuthError('');
+                }}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                placeholder="••••••••"
+                className="w-full px-4 py-2 bg-[#1a1a1a] border-2 border-[#333333] rounded text-white font-mono focus:border-[#FF6B35] outline-none"
+              />
+            </div>
+
+            {/* Error Message */}
+            {authError && (
+              <div className="mb-6 p-3 bg-[#FF006E]/10 border border-[#FF006E] rounded text-[#FF006E] text-sm">
+                {authError}
+              </div>
             )}
 
-            {/* Footer */}
-            <div className="mt-12 md:mt-16 pt-8 border-t border-[#333333] text-center">
-              <p className="text-[#AAAAAA] font-mono text-xs md:text-sm tracking-widest mb-2">
-                V6 CROSSFIT • BELO HORIZONTE
-              </p>
-              <p className="text-[#666666] text-xs">
-                Treino do dia • {workoutData.dayOfWeek} • {workoutData.date}
-              </p>
+            {/* Buttons */}
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setShowAuthModal(false);
+                  setAuthError('');
+                  setAuthUsername('');
+                  setAuthPassword('');
+                }}
+                className="flex-1 px-4 py-3 border-2 border-[#FF6B35] hover:bg-[#FF6B35]/10 text-[#FF6B35] font-bold rounded transition-all duration-200"
+              >
+                CANCELAR
+              </button>
+              <button
+                onClick={handleLogin}
+                className="flex-1 px-4 py-3 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded transition-all duration-200"
+              >
+                ENTRAR
+              </button>
             </div>
           </div>
         </div>
-      </main>
-
-      {/* Floating Action Button */}
-      <button
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="fixed bottom-8 right-8 p-4 neon-box rounded-full hover:scale-110 transition-transform duration-300 z-40"
-        aria-label="Voltar ao topo"
-      >
-        <svg
-          className="w-6 h-6 text-[#FF6B35]"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M5 10l7-7m0 0l7 7m-7-7v18"
-          />
-        </svg>
-      </button>
+      )}
     </div>
   );
 }
