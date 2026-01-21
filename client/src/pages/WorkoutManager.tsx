@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useTreinosAPI } from '@/hooks/useTreinosAPI';
-import { Trash2, Plus, Eye, Edit2 } from 'lucide-react';
+import { Trash2, Plus, Eye, Edit2, Menu, Upload } from 'lucide-react';
 
 interface Treino {
   id: number;
@@ -95,14 +95,36 @@ export default function WorkoutManager() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* ✅ NOVO: Botão flutuante /import-pdf - Mobile */}
+      <div className="fixed top-4 right-4 z-50 md:hidden">
+        <button
+          onClick={() => setLocation('/import-pdf')}
+          className="flex items-center justify-center w-12 h-12 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+          title="Importar PDF"
+        >
+          <Upload size={24} />
+        </button>
+      </div>
+
       {/* Header */}
       <header className="sticky top-0 z-40 border-b-2 border-[#FF6B35] bg-black/80 backdrop-blur-sm">
         <div className="container py-4 md:py-6">
-          <h1 className="neon-text text-2xl md:text-4xl font-bold tracking-wider mb-2">
-            GERENCIAR TREINOS
-          </h1>
-          <p className="text-[#AAAAAA] text-sm">Crie, edite e organize seus treinos da semana</p>
-          {loading && <p className="text-[#00D9FF] text-xs mt-2">⏳ Carregando...</p>}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="neon-text text-2xl md:text-4xl font-bold tracking-wider mb-2">
+                GERENCIAR TREINOS
+              </h1>
+              <p className="text-[#AAAAAA] text-sm">Crie, edite e organize seus treinos da semana</p>
+            </div>
+            {/* ✅ NOVO: Botão /import-pdf - Desktop */}
+            <button
+              onClick={() => setLocation('/import-pdf')}
+              className="hidden md:flex items-center gap-2 px-4 py-2 bg-[#00D9FF] hover:bg-[#00D9FF]/80 text-black font-bold rounded transition-all duration-200 text-sm"
+            >
+              <Upload size={16} /> IMPORTAR PDF
+            </button>
+          </div>
+          {loading && <p className="text-[#00D9FF] text-xs">⏳ Carregando...</p>}
         </div>
       </header>
 
