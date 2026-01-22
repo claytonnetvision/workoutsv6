@@ -72,7 +72,7 @@ export default function Display() {
     if (workoutData && workoutData.sections) {
       const initialStates: Record<string, TimerState> = {};
       workoutData.sections.forEach((section: any) => {
-        initialStates[section.id] = {
+        initialStates[String(section.id)] = {
           isRunning: false,
           timeLeft: section.durationMinutes * 60,
           isFinished: false,
@@ -276,27 +276,31 @@ export default function Display() {
                   </div>
                 </div>
 
-                {/* LAYOUT DE DUAS COLUNAS PARA TELAS MÉDIAS E MAIORES */}
                 <div className="grid grid-cols-1 md:grid-cols-3 md:gap-8 lg:gap-12">
                   
-                  {/* COLUNA ESQUERDA: CONTEÚDO DO TREINO */}
                   <div className="md:col-span-2">
-                    {section.content && section.content.length > 0 && (
+                    {section.content && section.content.length > 0 ? (
                       <div className="p-6 bg-[#1a1a1a] rounded-lg border border-[#333333] h-full">
-                        <p className="text-[#AAAAAA] font-mono text-xs mb-4">CONTEÚDO</p>
+                        <p className="text-[#AAAAAA] font-mono text-xs mb-4">DESCRIÇÃO DO TREINO</p>
                         <ul className="space-y-4">
                           {section.content.map((item, idx) => (
-                            <li key={idx} className="text-white/90 text-base md:text-lg flex items-start gap-3">
+                            // =================================================================
+                            // AQUI ESTÁ A ALTERAÇÃO: A FONTE FOI AUMENTADA SIGNIFICATIVAMENTE
+                            // =================================================================
+                            <li key={idx} className="text-white/90 text-2xl md:text-4xl flex items-start gap-3">
                               <span className="text-[#FF6B35] font-bold mt-1">▸</span>
                               <span>{item}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
+                    ) : (
+                      <div className="p-6 bg-[#1a1a1a] rounded-lg border border-[#333333] h-full flex items-center justify-center">
+                        <p className="text-[#AAAAAA]">Nenhuma descrição para esta seção.</p>
+                      </div>
                     )}
                   </div>
 
-                  {/* COLUNA DIREITA: CRONÔMETRO E CONTROLES */}
                   <div className="md:col-span-1 mt-8 md:mt-0">
                     <div className="p-6 bg-[#1a1a1a] rounded-lg border border-[#333333] sticky top-28">
                       <p className="text-[#AAAAAA] font-mono text-xs mb-3">CRONÔMETRO</p>
